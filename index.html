@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AlpUNO</title>
+    <title>UNO Pro - Gerçekçi Arayüz</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#f2f2f7">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -163,11 +163,13 @@
             toggleMenu();
         }
         let currentRoomCode = "";
+        
+        // PAYLAŞIM: Sadece saf kod kopyalanacak
         function copyAndShareRoom() {
             if(!currentRoomCode) return;
             navigator.clipboard.writeText(currentRoomCode).then(() => {
-                if (navigator.share) navigator.share({ title: 'UNO Pro', text: 'Oda Kodu: ' + currentRoomCode }).catch(console.error);
-                else alert("Oda kodu kopyalandı: " + currentRoomCode);
+                if (navigator.share) navigator.share({ text: currentRoomCode }).catch(console.error);
+                else alert("Oda Kodu Kopyalandı: " + currentRoomCode);
             });
         }
 
@@ -185,7 +187,6 @@
             return value;
         }
 
-        // --- GELİŞTİRİLMİŞ OYUN MOTORU (STRATEJİK KURALLAR EKLENDİ) ---
         class UNOGame {
             constructor(players) {
                 this.players = players;
@@ -194,10 +195,9 @@
                 this.currentColor = ''; 
                 this.turnCount = 1;
                 
-                // Katlamalı Ceza ve Tur Çekme Limitleri
                 this.pendingDraws = 0; 
                 this.pendingDrawType = null; 
-                this.drawsThisTurn = 0; // YENİ: Bir turda en fazla 2 kart çekilebilir
+                this.drawsThisTurn = 0; 
 
                 this.lastActionText = "Oyun başladı! Sıra " + this.players[0].name + " kişisinde.";
                 this.initDeck(); this.shuffleDeck();
@@ -229,7 +229,7 @@
 
             drawFromDeck() {
                 if (this.deck.length === 0) {
-                    if (this.discardPile.length <= 1) return { color: 'Siyah', value: 'Renk' }; // Güvenlik çemberi
+                    if (this.discardPile.length <= 1) return { color: 'Siyah', value: 'Renk' }; 
                     const topCard = this.discardPile.pop(); 
                     this.deck = [...this.discardPile]; 
                     this.discardPile = [topCard]; 
@@ -239,7 +239,7 @@
             }
 
             dealCards() {
-                this.players.forEach(p => { p.hand = []; p.saidUno = false; for(let i=0; i<7; i++) p.hand.push(this.drawFromDeck()); });
+                this.players.forEach(p => { p.hand = []; for(let i=0; i<7; i++) p.hand.push(this.drawFromDeck()); });
                 let firstCard = this.drawFromDeck();
                 while(firstCard.color === 'Siyah' || firstCard.value === 'Yön Değiştir' || firstCard.value === 'Pas Geç' || firstCard.value === '+2') {
                     this.deck.push(firstCard); this.shuffleDeck(); firstCard = this.drawFromDeck();
@@ -251,38 +251,30 @@
             nextTurn(skipCount = 1) {
                 this.turnIndex = (this.turnIndex + (this.direction * skipCount) + this.players.length) % this.players.length;
                 this.turnCount++;
-                this.drawsThisTurn = 0; // Sıra geçince çekme hakkı sıfırlanır
+                this.drawsThisTurn = 0; 
             }
 
-            // YENİ ÇEKME MANTIĞI: Cezalar ve Pas Geçme
             playerDrawCard(playerId) {
                 if (this.players[this.turnIndex].id !== playerId) return false;
                 const p = this.players.find(p => p.id === playerId);
                 
-                // 1. Durum: Masada bekleyen ceza var (Örn: +2 veya +4 yedi)
                 if (this.pendingDraws > 0) {
                     for(let i=0; i < this.pendingDraws; i++) p.hand.push(this.drawFromDeck());
-                    this.lastActionText = `${p.name} ${this.pendingDraws} kartlık cezayı çekti! Şimdi uygun bir kartla karşılık verebilir veya kart çekebilir.`;
+                    this.lastActionText = `${p.name} ${this.pendingDraws} kartlık cezayı çekti! Şimdi karşılık verebilir veya pas geçmek için tekrar çekebilir.`;
                     this.pendingDraws = 0;
                     this.pendingDrawType = null;
-                    p.saidUno = false;
-                    // DİKKAT: nextTurn() ÇAĞRILMAZ! Ceza çektikten sonra oyuncunun hamle hakkı devam eder.
                     return true;
                 }
 
-                // 2. Durum: Normal turda pas geçmek veya oynayacak kartı olmadığı için çekme
                 let c = this.drawFromDeck();
                 if(c) p.hand.push(c);
-                p.saidUno = false;
                 this.drawsThisTurn++;
 
                 if (this.drawsThisTurn >= 2) {
-                    // Maksimum 2 kart çekti, artık mecburen turu biter
                     let nextP = this.players[(this.turnIndex + this.direction + this.players.length) % this.players.length].name;
                     this.lastActionText = `${p.name} pas geçmek için 2 kart çekti. Sıra ${nextP}'da.`;
                     this.nextTurn();
                 } else {
-                    // 1 kart çekti, henüz turu bitmedi
                     this.lastActionText = `${p.name} 1 kart çekti. Atacak kartı yoksa 2. kartı çekip pas geçmek zorunda.`;
                 }
                 
@@ -291,8 +283,6 @@
 
             isValidMove(card) {
                 if (this.pendingDraws > 0) {
-                    // Masada ceza varsa SADECE aynı tür ceza kartı atılabilir. 
-                    // +4 üstüne +2, veya +2 üstüne +4 atılamaz!
                     return card.value === this.pendingDrawType;
                 }
                 const topCard = this.discardPile[this.discardPile.length - 1];
@@ -303,42 +293,58 @@
             playCard(playerId, cardData) {
                 if (this.players[this.turnIndex].id !== playerId) return { success: false };
                 const player = this.players.find(p => p.id === playerId);
+                
                 const cardIndex = player.hand.findIndex(c => c.color === cardData.color && c.value === cardData.value);
                 if (cardIndex === -1) return { success: false };
-
+                
                 const cardToPlay = player.hand[cardIndex];
+                
+                // DÜZELTME: İlk tıkladığın kart GÜNCEL MASAYA uygun mu? 
+                // Uygun değilse, işlemi direkt reddet. Tıkladığın kart kurallara uymak zorunda!
                 if (!this.isValidMove(cardToPlay)) return { success: false };
 
+                // Tıkladığın kart geçerliyse, elindeki o 'sayı/değer' ile eşleşen tüm kartları topla (COMBO)
+                const matchingCards = player.hand.filter(c => c.value === cardToPlay.value);
+                const comboCount = matchingCards.length;
+
+                // Atılan tüm kombo kartlarını elden çıkar
+                player.hand = player.hand.filter(c => c.value !== cardToPlay.value);
+
+                // Masaya Ekle: Tıkladığın (ve masaya uygun olan) kart EN SON eklensin ki rengi o belirlesin!
+                matchingCards.forEach(c => {
+                    if (c !== cardToPlay) this.discardPile.push(c);
+                });
                 this.discardPile.push(cardToPlay);
-                player.hand.splice(cardIndex, 1);
+                
                 this.currentColor = cardToPlay.color === 'Siyah' ? cardData.selectedColor : cardToPlay.color;
                 
                 let skipTurns = 1;
 
                 if (this.pendingDraws > 0) {
-                    // Sadece doğru tipteki cezalar katlanarak artar (+2 -> +2 gibi)
-                    if (cardToPlay.value === '+2') this.pendingDraws += 2;
-                    if (cardToPlay.value === '+4') this.pendingDraws += 4;
+                    if (cardToPlay.value === '+2') this.pendingDraws += (2 * comboCount);
+                    if (cardToPlay.value === '+4') this.pendingDraws += (4 * comboCount);
                 } else {
-                    if (cardToPlay.value === 'Yön Değiştir') { this.direction *= -1; if(this.players.length === 2) skipTurns = 2; } 
-                    else if (cardToPlay.value === 'Pas Geç') { skipTurns = 2; }
-                    else if (cardToPlay.value === '+2') { this.pendingDraws = 2; this.pendingDrawType = '+2'; }
-                    else if (cardToPlay.value === '+4') { this.pendingDraws = 4; this.pendingDrawType = '+4'; }
+                    if (cardToPlay.value === 'Yön Değiştir') { 
+                        if (comboCount % 2 !== 0) this.direction *= -1; 
+                        if (this.players.length === 2) skipTurns = 1 + comboCount; 
+                    } 
+                    else if (cardToPlay.value === 'Pas Geç') { skipTurns = 1 + comboCount; } 
+                    else if (cardToPlay.value === '+2') { this.pendingDraws = 2 * comboCount; this.pendingDrawType = '+2'; }
+                    else if (cardToPlay.value === '+4') { this.pendingDraws = 4 * comboCount; this.pendingDrawType = '+4'; }
                 }
 
-                if (player.hand.length === 1 && !player.saidUno) { player.hand.push(this.drawFromDeck(), this.drawFromDeck()); }
                 if (player.hand.length === 0) return { success: true, gameOver: true, winner: player };
 
-                // Kart atıldığı an oyuncunun turu biter
                 this.nextTurn(skipTurns);
                 
                 let nextPlayerName = this.players[this.turnIndex].name;
                 let cName = cardToPlay.color === 'Siyah' ? `Joker (${this.currentColor})` : `${cardToPlay.color} ${cardToPlay.value}`;
                 
+                let actionMsg = `${player.name} ${comboCount > 1 ? comboCount + ' adet ' : ''}${cName} attı.`;
                 if (this.pendingDraws > 0) {
-                    this.lastActionText = `DİKKAT! ${player.name} ${cName} attı. ${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
+                    this.lastActionText = `DİKKAT! ${actionMsg} ${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
                 } else {
-                    this.lastActionText = `${player.name} ${cName} attı, sıra ${nextPlayerName}'da.`;
+                    this.lastActionText = `${actionMsg} Sıra ${nextPlayerName}'da.`;
                 }
 
                 return { success: true, gameOver: false };
@@ -392,7 +398,7 @@
         }
 
         function startGameAsHost() {
-            gameInstance = new UNOGame(connections.map(c => ({ id: c.id, name: c.name, hand: [], score: 0, saidUno: false })));
+            gameInstance = new UNOGame(connections.map(c => ({ id: c.id, name: c.name, hand: [], score: 0 })));
             gameInstance.dealCards(); broadcastGameState();
         }
 
@@ -408,7 +414,7 @@
                     playersStatus: gameInstance.players.map(p => ({ id: p.id, name: p.name, cardCount: p.hand.length })),
                     lastActionText: gameInstance.lastActionText, turnCount: gameInstance.turnCount, myIndex: index + 1,
                     pendingDraws: gameInstance.pendingDraws, pendingDrawType: gameInstance.pendingDrawType,
-                    drawsThisTurn: gameInstance.drawsThisTurn // Güncel çekme sayısı
+                    drawsThisTurn: gameInstance.drawsThisTurn 
                 };
                 if (player.conn === 'host') updateUI(payload); else player.conn.send(payload);
             });
@@ -435,7 +441,7 @@
                     }
                 }
                 else if (data.type === 'draw_card') { if (gameInstance.playerDrawCard(senderId)) broadcastGameState(); }
-                else if (data.type === 'declare_uno') { let p = gameInstance.players.find(p => p.id === senderId); if(p) { p.saidUno = true; broadcastGameState(); } }
+                else if (data.type === 'declare_uno') { broadcastGameState(); }
                 else if (data.type === 'reorder_hand') {
                     let p = gameInstance.players.find(p => p.id === senderId);
                     if (p) { p.hand.splice(data.toIndex, 0, p.hand.splice(data.fromIndex, 1)[0]); broadcastGameState(); }
@@ -476,7 +482,6 @@
             const logBox = document.getElementById('action-log');
             logBox.innerHTML = gameState.lastActionText;
             
-            // Log paneli uyarıları
             if (isMyTurn && gameState.pendingDraws > 0) {
                 logBox.classList.add('penalty-active');
                 logBox.innerHTML = `⚠️ Üzerinde ${gameState.pendingDraws} ceza var! Ya ${gameState.pendingDrawType} atarak katla, ya da Deste'ye basıp cezayı çek!`;
@@ -487,7 +492,6 @@
                 logBox.classList.remove('penalty-active');
             }
 
-            // Deste Butonunun Metnini Oyuncunun Durumuna Göre Ayarlama
             let deckText = "DESTE";
             if (isMyTurn) {
                 if (gameState.pendingDraws > 0) deckText = "CEZAYI<br>ÇEK";
@@ -530,16 +534,15 @@
                 let canPlay = false;
                 if (isMyTurn) {
                     if (gameState.pendingDraws > 0) {
-                        // Masada ceza varken sadece aynı tip kart oynanabilir
                         canPlay = (card.value === gameState.pendingDrawType);
                     } else {
-                        // Ceza yoksa veya ceza çekildikten sonra normal kurallar işler
+                        // DÜZELTME: Sadece geleneksel kurallara göre oynanabilirlik kontrolü.
+                        // Kombo olup olmaması UI'ın derdi değil, sadece atabileceğin ilk geçerli karta tıklaman yeterli.
                         canPlay = (card.color === 'Siyah' || card.color === gameState.currentColor || card.value === gameState.topCard.value);
                     }
                 }
 
                 let cardHTML = generateCardHTML(card, 'normal', null, true, index);
-                
                 let wrapper = document.createElement('div');
                 wrapper.innerHTML = cardHTML;
                 let cardElement = wrapper.firstElementChild;
@@ -589,7 +592,7 @@
             if (pendingWildCard) { pendingWildCard.selectedColor = color; sendGameAction('play_card', { card: pendingWildCard }); pendingWildCard = null; }
         }
         function drawCardFromDeck() { sendGameAction('draw_card'); }
-        function declareUNO() { sendGameAction('declare_uno'); alert("UNO Diye Bağırdın!"); }
+        function declareUNO() { alert("UNO Diye Bağırdın!"); }
 
         function triggerWinAnimation(winnerName) {
             document.getElementById('game-board').innerHTML = `
@@ -606,14 +609,12 @@
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
-    </script>
-    <script>
-        // Service Worker Kaydı (PWA için)
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then((registration) => {
-                        console.log('ServiceWorker başarıyla kaydedildi. Kapsam: ', registration.scope);
+                        console.log('ServiceWorker başarıyla kaydedildi.');
                     }, (err) => {
                         console.log('ServiceWorker kaydı başarısız oldu: ', err);
                     });
