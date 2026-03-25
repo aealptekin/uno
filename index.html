@@ -19,7 +19,7 @@
             --bg-color: #000000; --text-color: #ffffff; --nav-bg: rgba(28, 28, 30, 0.9);
             --card-bg: #1c1c1e; --border-color: #38383a; --shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; touch-action: manipulation; }
         body { background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; display: flex; flex-direction: column; height: 100vh; }
 
         /* Üst Bar */
@@ -61,7 +61,7 @@
         
         /* --- KART TASARIMI --- */
         .uno-card { background: white; border-radius: 10px; padding: 5px; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; }
-        .uno-inner { width: 100%; height: 100%; border-radius: 6px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .uno-inner { width: 100%; height: 100%; border-radius: 6px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; pointer-events: none; }
         
         .uno-oval { position: absolute; width: 85%; height: 75%; background: white; border-radius: 50%; transform: rotate(-25deg); }
         
@@ -80,7 +80,7 @@
         .uno-card.back .uno-center-val { color: #ffcc00; font-size: 24px; text-shadow: 2px 2px 0px black; transform: rotate(-25deg); }
 
         .uno-card.disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(50%); }
-        .uno-card.selected { transform: translateY(-25px) scale(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.6); z-index: 50 !important; }
+        .uno-card.selected { transform: translateY(-25px) scale(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.6); z-index: 50 !important; border: 2px solid #34c759; }
 
         /* --- Alt Kısım ve Kendi Elim --- */
         .bottom-section { margin-top: auto; display: flex; flex-direction: column; padding: 10px; background: rgba(0,0,0,0.2); }
@@ -93,9 +93,9 @@
         .uno-btn { background: var(--danger-btn); color: white; border: none; padding: 12px; border-radius: 50px; width: 100%; font-size: 18px; font-weight: 800; box-shadow: var(--shadow); cursor: pointer; margin-bottom: 10px; margin-top: 5px; }
         
         /* Oyuncular Grid */
-        .players-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .players-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .player-box { background: var(--card-bg); padding: 8px; border-radius: 8px; text-align: center; color: var(--text-color); font-size: 12px; box-shadow: var(--shadow);}
-        .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px;}
+        .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
 
     </style>
@@ -137,6 +137,15 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="combo-modal" style="display: none;">
+        <div class="modal">
+            <h3>Hangi Kart Üstte Kalsın?</h3>
+            <p style="font-size:13px; color:gray; margin-bottom:10px;">Kombo yapıyorsunuz! Masada rengi belirleyecek olan kartı seçin.</p>
+            <div class="color-grid" id="combo-grid">
+                </div>
+        </div>
+    </div>
+
     <div class="game-area" id="game-board">
         
         <div class="info-bar">
@@ -164,7 +173,6 @@
         }
         let currentRoomCode = "";
         
-        // PAYLAŞIM: Sadece saf kod kopyalanacak
         function copyAndShareRoom() {
             if(!currentRoomCode) return;
             navigator.clipboard.writeText(currentRoomCode).then(() => {
@@ -294,29 +302,37 @@
                 if (this.players[this.turnIndex].id !== playerId) return { success: false };
                 const player = this.players.find(p => p.id === playerId);
                 
-                const cardIndex = player.hand.findIndex(c => c.color === cardData.color && c.value === cardData.value);
+                const cardIndex = player.hand.findIndex(c => c.color === cardData.card.color && c.value === cardData.card.value);
                 if (cardIndex === -1) return { success: false };
                 
                 const cardToPlay = player.hand[cardIndex];
                 
-                // DÜZELTME: İlk tıkladığın kart GÜNCEL MASAYA uygun mu? 
-                // Uygun değilse, işlemi direkt reddet. Tıkladığın kart kurallara uymak zorunda!
-                if (!this.isValidMove(cardToPlay)) return { success: false };
-
-                // Tıkladığın kart geçerliyse, elindeki o 'sayı/değer' ile eşleşen tüm kartları topla (COMBO)
+                // --- GERÇEK KOMBO MANTIĞI KONTROLÜ ---
+                // Oynanmak istenen kartların grubunu (aynı sayı/tür) elde bul
                 const matchingCards = player.hand.filter(c => c.value === cardToPlay.value);
+                
+                // BU GRUP MASAYA ATILABİLİR Mİ?
+                // Kural: Atılacak kartlardan EN AZ BİR TANESİ yerdeki kurala (renk/sayı) uyuyorsa bu kombo geçerlidir!
+                const isValidCombo = matchingCards.some(c => this.isValidMove(c));
+                
+                if (!isValidCombo) return { success: false };
+
                 const comboCount = matchingCards.length;
 
-                // Atılan tüm kombo kartlarını elden çıkar
+                // Seçilen topComboCard'ı elde bul, yoksa orijinal kartı kullan
+                let topCardInfo = cardData.topComboCard || cardToPlay;
+                let topCard = matchingCards.find(c => c.color === topCardInfo.color && c.value === topCardInfo.value) || cardToPlay;
+
+                // Atılacak tüm eşleşen kartları elden çıkar
                 player.hand = player.hand.filter(c => c.value !== cardToPlay.value);
 
-                // Masaya Ekle: Tıkladığın (ve masaya uygun olan) kart EN SON eklensin ki rengi o belirlesin!
+                // Masaya Ekle (Kullanıcının seçtiği topCard en sona eklenir ki oyunun rengi o olsun)
                 matchingCards.forEach(c => {
-                    if (c !== cardToPlay) this.discardPile.push(c);
+                    if (c !== topCard) this.discardPile.push(c);
                 });
-                this.discardPile.push(cardToPlay);
+                this.discardPile.push(topCard);
                 
-                this.currentColor = cardToPlay.color === 'Siyah' ? cardData.selectedColor : cardToPlay.color;
+                this.currentColor = topCard.color === 'Siyah' ? cardData.card.selectedColor : topCard.color;
                 
                 let skipTurns = 1;
 
@@ -338,7 +354,7 @@
                 this.nextTurn(skipTurns);
                 
                 let nextPlayerName = this.players[this.turnIndex].name;
-                let cName = cardToPlay.color === 'Siyah' ? `Joker (${this.currentColor})` : `${cardToPlay.color} ${cardToPlay.value}`;
+                let cName = topCard.color === 'Siyah' ? `Joker (${this.currentColor})` : `${topCard.color} ${topCard.value}`;
                 
                 let actionMsg = `${player.name} ${comboCount > 1 ? comboCount + ' adet ' : ''}${cName} attı.`;
                 if (this.pendingDraws > 0) {
@@ -355,6 +371,7 @@
         let peer = new Peer(); 
         let connections = []; let isHost = false; let gameInstance = null; let myId = null; let hostConnection = null;
         let pendingWildCard = null; let currentMyHand = []; let myPlayerIndex = 0;
+        let pendingComboOriginalCard = null;
 
         peer.on('open', (id) => { myId = id; });
 
@@ -398,8 +415,14 @@
         }
 
         function startGameAsHost() {
-            gameInstance = new UNOGame(connections.map(c => ({ id: c.id, name: c.name, hand: [], score: 0 })));
-            gameInstance.dealCards(); broadcastGameState();
+            let activePlayers = connections.filter(c => c.id).map(c => ({ id: c.id, name: c.name, hand: [], score: 0 }));
+            gameInstance = new UNOGame(activePlayers);
+            gameInstance.dealCards(); 
+            broadcastGameState();
+        }
+
+        function requestRestart() {
+            sendGameAction('restart_game');
         }
 
         function broadcastGameState() {
@@ -407,6 +430,8 @@
             const topCard = gameInstance.discardPile[gameInstance.discardPile.length - 1];
             connections.forEach((player, index) => {
                 const pData = gameInstance.players.find(p => p.id === player.id);
+                if(!pData) return; 
+
                 const payload = {
                     type: 'state_update',
                     topCard: topCard, currentColor: gameInstance.currentColor,
@@ -427,14 +452,23 @@
                 if (data.type === 'join') {
                     let p = connections.find(c => c.id === senderId); 
                     if(p) p.name = data.name;
+                    
                     if(gameInstance) {
                         let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
-                        if(gamePlayer) gamePlayer.name = data.name;
+                        if(gamePlayer) {
+                            gamePlayer.name = data.name;
+                        } else {
+                            let newP = { id: senderId, name: data.name, hand: [], score: 0 };
+                            for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
+                            gameInstance.players.push(newP);
+                        }
                         broadcastGameState(); 
+                    } else if (connections.length >= 2) {
+                        startGameAsHost();
                     }
                 }
                 else if (data.type === 'play_card') {
-                    let result = gameInstance.playCard(senderId, data.card);
+                    let result = gameInstance.playCard(senderId, data);
                     if (result.success) {
                         broadcastGameState();
                         if(result.gameOver) connections.forEach(p => { let go = {type:'game_over', winnerName:result.winner.name}; p.conn==='host'?triggerWinAnimation(go.winnerName):p.conn.send(go); });
@@ -446,6 +480,9 @@
                     let p = gameInstance.players.find(p => p.id === senderId);
                     if (p) { p.hand.splice(data.toIndex, 0, p.hand.splice(data.fromIndex, 1)[0]); broadcastGameState(); }
                 }
+                else if (data.type === 'restart_game') {
+                    startGameAsHost();
+                }
             }
         }
 
@@ -455,7 +492,7 @@
             if(bgColor === '#ffcc00') textColor = 'black'; 
             let dispVal = getCardDisplayValue(card.value);
             
-            let idAndEvents = interactable ? `id="card-${index}" draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="event.preventDefault()" ondrop="handleDropInHand(event, ${index})" onclick="handleCardClick(${index})"` : '';
+            let idAndEvents = interactable ? `id="card-${index}" draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="event.preventDefault()" ondrop="handleDropInHand(event, ${index})" onmousedown="handleCardClick(${index})"` : '';
             let zIndex = index >= 0 ? index : 10; 
 
             return `
@@ -473,6 +510,9 @@
         let selectedCardIndex = null;
 
         function updateUI(gameState) {
+            let winScr = document.getElementById('win-screen');
+            if(winScr) winScr.remove();
+
             const isMyTurn = gameState.activeTurnId === myId;
             currentMyHand = gameState.myHand;
             const me = gameState.playersStatus.find(p => p.id === myId);
@@ -536,9 +576,16 @@
                     if (gameState.pendingDraws > 0) {
                         canPlay = (card.value === gameState.pendingDrawType);
                     } else {
-                        // DÜZELTME: Sadece geleneksel kurallara göre oynanabilirlik kontrolü.
-                        // Kombo olup olmaması UI'ın derdi değil, sadece atabileceğin ilk geçerli karta tıklaman yeterli.
-                        canPlay = (card.color === 'Siyah' || card.color === gameState.currentColor || card.value === gameState.topCard.value);
+                        // ARAYÜZ OYNANABİLİRLİK (PARLAKLIK) GÜNCELLEMESİ
+                        // 1. Bu kart doğrudan masaya uyuyor mu?
+                        let isNormalValid = (card.color === 'Siyah' || card.color === gameState.currentColor || card.value === gameState.topCard.value);
+                        
+                        // 2. Bu kartla AYNI DEĞERE sahip ve masaya uyan (kapı açan) başka bir kartım var mı?
+                        let matchingCards = currentMyHand.filter(c => c.value === card.value);
+                        let isComboValid = matchingCards.some(c => c.color === 'Siyah' || c.color === gameState.currentColor || c.value === gameState.topCard.value);
+                        
+                        // Eğer bunlardan biri bile doğruysa kart kombo veya normal atış için tıklanabilir.
+                        canPlay = isNormalValid || isComboValid;
                     }
                 }
 
@@ -584,28 +631,64 @@
         }
 
         function attemptPlayCard(card) {
-            if (card.color === 'Siyah') { pendingWildCard = card; document.getElementById('color-modal').style.display = 'flex'; } 
-            else { sendGameAction('play_card', { card: card }); }
+            if (card.color === 'Siyah') { 
+                pendingWildCard = card; 
+                document.getElementById('color-modal').style.display = 'flex'; 
+            } else { 
+                const matchingCards = currentMyHand.filter(c => c.value === card.value);
+                if (matchingCards.length > 1) {
+                    showComboModal(matchingCards, card);
+                } else {
+                    sendGameAction('play_card', { card: card, topComboCard: card }); 
+                }
+            }
         }
+
+        function showComboModal(cards, originalCard) {
+            pendingComboOriginalCard = originalCard;
+            const grid = document.getElementById('combo-grid');
+            grid.innerHTML = '';
+            cards.forEach(c => {
+                let bgColor = getCardColorHex(c.color);
+                let textColor = (bgColor === '#1c1c1e' || bgColor === '#ffffff' || bgColor === '#ffcc00') ? 'black' : 'white';
+                grid.innerHTML += `<button class="color-btn" style="background:${bgColor}; color:${textColor}; border: 1px solid rgba(0,0,0,0.2);" onclick="selectComboTop('${c.color}', '${c.value}')">${c.color} ${c.value}</button>`;
+            });
+            document.getElementById('combo-modal').style.display = 'flex';
+        }
+
+        function selectComboTop(color, value) {
+            document.getElementById('combo-modal').style.display = 'none';
+            sendGameAction('play_card', { card: pendingComboOriginalCard, topComboCard: {color, value} });
+            pendingComboOriginalCard = null;
+        }
+
         function selectWildColor(color) {
             document.getElementById('color-modal').style.display = 'none';
-            if (pendingWildCard) { pendingWildCard.selectedColor = color; sendGameAction('play_card', { card: pendingWildCard }); pendingWildCard = null; }
+            if (pendingWildCard) { 
+                pendingWildCard.selectedColor = color; 
+                sendGameAction('play_card', { card: pendingWildCard, topComboCard: pendingWildCard }); 
+                pendingWildCard = null; 
+            }
         }
+        
         function drawCardFromDeck() { sendGameAction('draw_card'); }
         function declareUNO() { alert("UNO Diye Bağırdın!"); }
 
         function triggerWinAnimation(winnerName) {
-            document.getElementById('game-board').innerHTML = `
-                <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white;">
+            let winHtml = `
+                <div id="win-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:400; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white;">
                     <h1 style="font-size:40px;">${winnerName}</h1>
                     <h2 style="margin-top:10px;">KAZANDI!</h2>
-                    <button class="btn btn-primary" style="margin-top:30px; width:200px;" onclick="location.reload()">Yeniden Oyna</button>
+                    <button class="btn btn-primary" style="margin-top:30px; width:200px;" onclick="requestRestart()">Yeni El Başlat</button>
+                    <p style="margin-top:15px; font-size:12px; color:gray;">(Oda kapanmaz, herkes yeni ele geçer)</p>
                 </div>
             `;
+            document.body.insertAdjacentHTML('beforeend', winHtml);
+            
             var end = Date.now() + 5000;
             (function frame() {
-                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 300 });
-                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 300 });
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 500 });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 500 });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
