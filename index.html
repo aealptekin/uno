@@ -55,6 +55,10 @@
         .penalty-active { border: 2px solid #ff3b30 !important; background: rgba(255, 59, 48, 0.3) !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48, 0); } }
 
+        /* --- YENİ: MESAJ EKRANI (ÜST KISIM) --- */
+        .chat-display { width: 100%; background: var(--card-bg); color: var(--text-color); padding: 5px 15px; font-size: 13px; font-weight: bold; min-height: 25px; display: flex; flex-direction: column; justify-content: center; gap: 3px; border-bottom: 1px solid var(--border-color); }
+        .chat-message { margin: 0; line-height: 1.2; word-wrap: break-word; }
+
         /* Masa Ortası */
         .table-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 30px; position: relative; }
         .deck-area, .played-area { display: flex; flex-direction: column; align-items: center; gap: 8px; color: rgba(255,255,255,0.8); font-weight: bold; font-size: 14px; }
@@ -98,6 +102,12 @@
         .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
 
+        /* --- YENİ: MESAJ GÖNDERME SATIRI (ALT KISIM) --- */
+        .chat-input-container { display: flex; background: var(--card-bg); padding: 8px 10px; border-top: 1px solid var(--border-color); align-items: center; z-index: 100;}
+        .chat-input-container input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 14px; outline: none; background: var(--bg-color); color: var(--text-color); }
+        .chat-input-container button { background: none; border: none; cursor: pointer; padding: 0 0 0 10px; display: flex; align-items: center; justify-content: center; }
+        .chat-input-container button svg { fill: #34c759; width: 28px; height: 28px; transform: rotate(-15deg); }
+
     </style>
 </head>
 <body>
@@ -120,8 +130,8 @@
             <p style="font-size: 13px; color: gray; margin-top: 5px;">Aynı ağda oynamak için bir oda kurun veya katılın.</p>
             <input type="text" id="player-name" placeholder="Adınız (örn: Erkan)">
             <input type="text" id="room-code" placeholder="Oda Kodu (Katılmak için)">
+            <button class="btn" style="background-color: #34c759; color: white;" onclick="joinRoom()">Odaya Katıl</button>
             <button class="btn btn-primary" onclick="createRoom()">Oda Kur</button>
-            <button class="btn btn-secondary" onclick="joinRoom()">Odaya Katıl</button>
         </div>
     </div>
 
@@ -153,6 +163,8 @@
             <div class="info-box highlight" id="action-log">Oyunun başlaması bekleniyor.</div>
         </div>
 
+        <div id="chat-display" class="chat-display"></div>
+
         <div class="table-center" id="table-center" ondragover="event.preventDefault()" ondrop="handleTableDrop(event)">
             </div>
 
@@ -160,6 +172,13 @@
             <div class="my-hand-container" id="my-hand"></div>
             <button class="uno-btn" onclick="declareUNO()">UNO Diye Bağır!</button>
             <div class="players-grid" id="players-container"></div>
+        </div>
+
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Mesaj gönder..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+            <button onclick="sendChatMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+            </button>
         </div>
 
     </div>
@@ -261,7 +280,6 @@
                 this.turnCount++;
                 this.drawsThisTurn = 0; 
 
-                // GÜNCELLEME: Sıra yeni oyuncuya geçtiğinde UNO demeyi unuttu mu diye kontrol et.
                 let currentPlayer = this.players[this.turnIndex];
                 if (currentPlayer.hand.length === 1 && !currentPlayer.saidUno) {
                     for(let i=0; i<4; i++) currentPlayer.hand.push(this.drawFromDeck());
@@ -273,7 +291,6 @@
                 if (this.players[this.turnIndex].id !== playerId) return false;
                 const p = this.players.find(p => p.id === playerId);
                 
-                // Kart çekerse, UNO durumu iptal olur (artık 1'den fazla kartı vardır)
                 p.saidUno = false;
 
                 if (this.pendingDraws > 0) {
@@ -353,10 +370,8 @@
                     else if (cardToPlay.value === '+4') { this.pendingDraws = 4; this.pendingDrawType = '+4'; }
                 }
 
-                // GÜNCELLEME: Kombo ile bir anda biterse veya normal şekilde eli sıfırlanırsa hemen kazanır
                 if (player.hand.length === 0) return { success: true, gameOver: true, winner: player };
 
-                // Mesajı oluştururken bir sonraki oyuncuyu hesapla
                 let nextPlayerIndex = (this.turnIndex + (this.direction * skipTurns) + this.players.length) % this.players.length;
                 let nextPlayerName = this.players[nextPlayerIndex].name;
                 
@@ -369,12 +384,10 @@
                     this.lastActionText = `${actionMsg} Sıra ${nextPlayerName}'da.`;
                 }
 
-                // Eğer kart attıktan sonra elinde 1'den fazla kart kalıyorsa, önceden bağırılmış UNO'yu sıfırla
                 if (player.hand.length > 1) {
                     player.saidUno = false;
                 }
 
-                // Sırayı geçir (İçinde 4 ceza kuralı çalışacak)
                 this.nextTurn(skipTurns);
 
                 return { success: true, gameOver: false };
@@ -386,6 +399,7 @@
         let connections = []; let isHost = false; let gameInstance = null; let myId = null; let hostConnection = null;
         let pendingWildCard = null; let currentMyHand = []; let myPlayerIndex = 0;
         let pendingComboOriginalCard = null;
+        let globalChatHistory = []; // YENİ: Sohbet geçmişi
 
         peer.on('open', (id) => { myId = id; });
 
@@ -428,6 +442,16 @@
             else if(hostConnection) hostConnection.send(payload);
         }
 
+        // YENİ: Sohbet Mesajı Gönderme
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(text) {
+                sendGameAction('chat_message', { text: text });
+                input.value = '';
+            }
+        }
+
         function startGameAsHost() {
             let activePlayers = connections.filter(c => c.id).map(c => ({ id: c.id, name: c.name, hand: [], score: 0, saidUno: false }));
             gameInstance = new UNOGame(activePlayers);
@@ -453,7 +477,8 @@
                     playersStatus: gameInstance.players.map(p => ({ id: p.id, name: p.name, cardCount: p.hand.length })),
                     lastActionText: gameInstance.lastActionText, turnCount: gameInstance.turnCount, myIndex: index + 1,
                     pendingDraws: gameInstance.pendingDraws, pendingDrawType: gameInstance.pendingDrawType,
-                    drawsThisTurn: gameInstance.drawsThisTurn 
+                    drawsThisTurn: gameInstance.drawsThisTurn,
+                    chatHistory: globalChatHistory // YENİ: Sohbet Geçmişini Ekle
                 };
                 if (player.conn === 'host') updateUI(payload); else player.conn.send(payload);
             });
@@ -490,7 +515,6 @@
                 }
                 else if (data.type === 'draw_card') { if (gameInstance.playerDrawCard(senderId)) broadcastGameState(); }
                 
-                // GÜNCELLEME: UNO Diye Bağırma Durumu Herkese Duyurulur
                 else if (data.type === 'declare_uno') { 
                     let p = gameInstance.players.find(p => p.id === senderId);
                     if (p) {
@@ -506,6 +530,14 @@
                 }
                 else if (data.type === 'restart_game') {
                     startGameAsHost();
+                }
+                // YENİ: Mesajı Al ve Geçmişe Ekle
+                else if (data.type === 'chat_message') {
+                    let p = connections.find(c => c.id === senderId);
+                    let senderName = p ? p.name : "Oyuncu";
+                    globalChatHistory.push(`<span style="color:var(--primary-btn);">${senderName}:</span> ${data.text}`);
+                    if (globalChatHistory.length > 3) globalChatHistory.shift();
+                    broadcastGameState();
                 }
             }
         }
@@ -545,6 +577,15 @@
             
             const logBox = document.getElementById('action-log');
             logBox.innerHTML = gameState.lastActionText;
+
+            // YENİ: Gelen Mesajları Ekranda Göster
+            const chatBox = document.getElementById('chat-display');
+            chatBox.innerHTML = '';
+            if (gameState.chatHistory && gameState.chatHistory.length > 0) {
+                gameState.chatHistory.forEach(msg => {
+                    chatBox.innerHTML += `<div class="chat-message">${msg}</div>`;
+                });
+            }
             
             if (isMyTurn && gameState.pendingDraws > 0) {
                 logBox.classList.add('penalty-active');
@@ -700,8 +741,8 @@
         function drawCardFromDeck() { sendGameAction('draw_card'); }
         
         function declareUNO() { 
+            // YENİ: Tarayıcıyı donduran alert() komutu silindi. Tıklama anında ağa iletilir.
             sendGameAction('declare_uno'); 
-            alert("UNO Diye Bağırdın!"); 
         }
 
         function triggerWinAnimation(winnerName) {
