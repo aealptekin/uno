@@ -307,26 +307,33 @@
                 
                 const cardToPlay = player.hand[cardIndex];
                 
-                // --- GERÇEK KOMBO MANTIĞI KONTROLÜ ---
-                // Oynanmak istenen kartların grubunu (aynı sayı/tür) elde bul
-                const matchingCards = player.hand.filter(c => c.value === cardToPlay.value);
+                if (!this.isValidMove(cardToPlay)) return { success: false };
+
+                // GÜNCELLEME: ÖZEL KARTLARDA KOMBO İPTALİ
+                // Yön Değiştir, Pas Geç, +2, +4 ve Renk kartları KESİNLİKLE kombo yapılamaz.
+                const isActionCard = ['Yön Değiştir', 'Pas Geç', '+2', '+4', 'Renk'].includes(cardToPlay.value);
                 
-                // BU GRUP MASAYA ATILABİLİR Mİ?
-                // Kural: Atılacak kartlardan EN AZ BİR TANESİ yerdeki kurala (renk/sayı) uyuyorsa bu kombo geçerlidir!
+                let matchingCards = [];
+                if (isActionCard) {
+                    // Eğer atılan kart özel bir kartsa (ceza veya aksiyon), sadece kendisi atılır.
+                    matchingCards = [cardToPlay];
+                } else {
+                    // Normal sayı kartıysa kombo yapılabilir.
+                    matchingCards = player.hand.filter(c => c.value === cardToPlay.value);
+                }
+                
                 const isValidCombo = matchingCards.some(c => this.isValidMove(c));
-                
                 if (!isValidCombo) return { success: false };
 
                 const comboCount = matchingCards.length;
 
-                // Seçilen topComboCard'ı elde bul, yoksa orijinal kartı kullan
                 let topCardInfo = cardData.topComboCard || cardToPlay;
                 let topCard = matchingCards.find(c => c.color === topCardInfo.color && c.value === topCardInfo.value) || cardToPlay;
 
                 // Atılacak tüm eşleşen kartları elden çıkar
-                player.hand = player.hand.filter(c => c.value !== cardToPlay.value);
+                player.hand = player.hand.filter(c => !matchingCards.includes(c));
 
-                // Masaya Ekle (Kullanıcının seçtiği topCard en sona eklenir ki oyunun rengi o olsun)
+                // Masaya Ekle
                 matchingCards.forEach(c => {
                     if (c !== topCard) this.discardPile.push(c);
                 });
@@ -337,16 +344,17 @@
                 let skipTurns = 1;
 
                 if (this.pendingDraws > 0) {
-                    if (cardToPlay.value === '+2') this.pendingDraws += (2 * comboCount);
-                    if (cardToPlay.value === '+4') this.pendingDraws += (4 * comboCount);
+                    // Masada ceza varken sadece AYNI ceza kartı atılabilir (zaten kombo kapalı olduğu için comboCount = 1)
+                    if (cardToPlay.value === '+2') this.pendingDraws += 2;
+                    if (cardToPlay.value === '+4') this.pendingDraws += 4;
                 } else {
                     if (cardToPlay.value === 'Yön Değiştir') { 
-                        if (comboCount % 2 !== 0) this.direction *= -1; 
-                        if (this.players.length === 2) skipTurns = 1 + comboCount; 
+                        this.direction *= -1; 
+                        if (this.players.length === 2) skipTurns = 2; 
                     } 
-                    else if (cardToPlay.value === 'Pas Geç') { skipTurns = 1 + comboCount; } 
-                    else if (cardToPlay.value === '+2') { this.pendingDraws = 2 * comboCount; this.pendingDrawType = '+2'; }
-                    else if (cardToPlay.value === '+4') { this.pendingDraws = 4 * comboCount; this.pendingDrawType = '+4'; }
+                    else if (cardToPlay.value === 'Pas Geç') { skipTurns = 2; } 
+                    else if (cardToPlay.value === '+2') { this.pendingDraws = 2; this.pendingDrawType = '+2'; }
+                    else if (cardToPlay.value === '+4') { this.pendingDraws = 4; this.pendingDrawType = '+4'; }
                 }
 
                 if (player.hand.length === 0) return { success: true, gameOver: true, winner: player };
@@ -576,15 +584,17 @@
                     if (gameState.pendingDraws > 0) {
                         canPlay = (card.value === gameState.pendingDrawType);
                     } else {
-                        // ARAYÜZ OYNANABİLİRLİK (PARLAKLIK) GÜNCELLEMESİ
-                        // 1. Bu kart doğrudan masaya uyuyor mu?
                         let isNormalValid = (card.color === 'Siyah' || card.color === gameState.currentColor || card.value === gameState.topCard.value);
                         
-                        // 2. Bu kartla AYNI DEĞERE sahip ve masaya uyan (kapı açan) başka bir kartım var mı?
-                        let matchingCards = currentMyHand.filter(c => c.value === card.value);
-                        let isComboValid = matchingCards.some(c => c.color === 'Siyah' || c.color === gameState.currentColor || c.value === gameState.topCard.value);
+                        // GÜNCELLEME: Özel kartlar kombo yapılamayacağı için UI'da da buna göre parlarlar
+                        let isActionCard = ['Yön Değiştir', 'Pas Geç', '+2', '+4', 'Renk'].includes(card.value);
+                        let isComboValid = false;
                         
-                        // Eğer bunlardan biri bile doğruysa kart kombo veya normal atış için tıklanabilir.
+                        if (!isActionCard) {
+                            let matchingCards = currentMyHand.filter(c => c.value === card.value);
+                            isComboValid = matchingCards.some(c => c.color === 'Siyah' || c.color === gameState.currentColor || c.value === gameState.topCard.value);
+                        }
+                        
                         canPlay = isNormalValid || isComboValid;
                     }
                 }
@@ -635,7 +645,10 @@
                 pendingWildCard = card; 
                 document.getElementById('color-modal').style.display = 'flex'; 
             } else { 
-                const matchingCards = currentMyHand.filter(c => c.value === card.value);
+                // GÜNCELLEME: Aksiyon kartına tıklanırsa kombo ekranı AÇILMAYACAK, direkt atılacak
+                let isActionCard = ['Yön Değiştir', 'Pas Geç', '+2', '+4', 'Renk'].includes(card.value);
+                const matchingCards = isActionCard ? [card] : currentMyHand.filter(c => c.value === card.value);
+                
                 if (matchingCards.length > 1) {
                     showComboModal(matchingCards, card);
                 } else {
