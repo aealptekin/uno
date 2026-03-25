@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AlpUNO</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f2f2f7">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* --- Temel ve Tema Değişkenleri --- */
+        :root {
+            --bg-color: #f2f2f7; --text-color: #000000; --nav-bg: rgba(255, 255, 255, 0.9);
+            --card-bg: #ffffff; --primary-btn: #007aff; --danger-btn: #ff3b30;
+            --border-color: #c6c6c8; --shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        [data-theme="dark"] {
+            --bg-color: #000000; --text-color: #ffffff; --nav-bg: rgba(28, 28, 30, 0.9);
+            --card-bg: #1c1c1e; --border-color: #38383a; --shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body { background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; display: flex; flex-direction: column; height: 100vh; }
+
+        /* Üst Bar */
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); z-index: 100; overflow: hidden; width: 100%; }
+        .navbar-title-container { display: flex; align-items: center; overflow: hidden; flex-grow: 1; margin-right: 10px; }
+        .navbar h2 { margin: 0; font-size: 20px; font-weight: bold; flex-shrink: 0; }
+        #room-id-display { margin-left: 10px; font-size: 14px; color: var(--primary-btn); cursor: pointer; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; max-width: 65vw; }
+        
+        .menu-btn { background: none; border: none; font-size: 24px; color: var(--primary-btn); cursor: pointer; flex-shrink: 0; }
+        
+        .dropdown-menu { display: none; position: absolute; top: 50px; right: 20px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); width: 200px; z-index: 101; border: 1px solid var(--border-color); }
+        .dropdown-menu.active { display: block; }
+        .menu-item { padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+
+        /* Modallar */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 200; }
+        .modal { background: var(--card-bg); width: 90%; max-width: 350px; border-radius: 14px; padding: 20px; text-align: center; box-shadow: var(--shadow); }
+        .modal input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border-color); font-size: 16px; background:var(--bg-color); color:var(--text-color); }
+        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; }
+        .btn-primary { background: var(--primary-btn); }
+        .btn-secondary { background: #8e8e93; }
+
+        .color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .color-btn { height: 60px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; color: white; font-size: 16px; box-shadow: var(--shadow); }
+
+        /* --- OYUN ALANI --- */
+        .game-area { flex: 1; display: flex; flex-direction: column; background: radial-gradient(circle, #2b8b3b 0%, #154d1e 100%); display: none; overflow: hidden; }
+        
+        /* Dinamik Bilgi Çubuğu */
+        .info-bar { display: flex; gap: 10px; padding: 15px; background: rgba(0, 0, 0, 0.4); border-bottom: 2px solid rgba(255,255,255,0.1); }
+        .info-box { flex: 1; background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px; color: white; font-size: 14px; line-height: 1.4; display: flex; align-items: center; justify-content: center; text-align: center; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
+        .info-box.highlight { border: 1px solid rgba(255,255,255,0.3); font-weight: 500; }
+        .penalty-active { border: 2px solid #ff3b30 !important; background: rgba(255, 59, 48, 0.3) !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48, 0); } }
+
+        /* Masa Ortası */
+        .table-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 30px; position: relative; }
+        .deck-area, .played-area { display: flex; flex-direction: column; align-items: center; gap: 8px; color: rgba(255,255,255,0.8); font-weight: bold; font-size: 14px; }
+        
+        /* --- KART TASARIMI --- */
+        .uno-card { background: white; border-radius: 10px; padding: 5px; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; }
+        .uno-inner { width: 100%; height: 100%; border-radius: 6px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        
+        .uno-oval { position: absolute; width: 85%; height: 75%; background: white; border-radius: 50%; transform: rotate(-25deg); }
+        
+        .uno-center-val { position: relative; z-index: 2; font-size: 40px; font-weight: 900; line-height: 1; text-shadow: 2px 2px 0px rgba(0,0,0,0.2); text-align: center;}
+        .uno-corner { position: absolute; font-size: 16px; font-weight: bold; color: white; text-shadow: 1px 1px 1px black; z-index: 2; }
+        .top-left { top: 4px; left: 6px; }
+        .bottom-right { bottom: 4px; right: 6px; transform: rotate(180deg); }
+
+        .uno-card.normal { width: 75px; height: 115px; } 
+        .uno-card.large { width: 110px; height: 170px; } 
+        .uno-card.large .uno-center-val { font-size: 60px; }
+        .uno-card.large .uno-corner { font-size: 22px; }
+
+        .uno-card.back .uno-inner { background: #1c1c1e; }
+        .uno-card.back .uno-oval { background: #ff3b30; }
+        .uno-card.back .uno-center-val { color: #ffcc00; font-size: 24px; text-shadow: 2px 2px 0px black; transform: rotate(-25deg); }
+
+        .uno-card.disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(50%); }
+        .uno-card.selected { transform: translateY(-25px) scale(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.6); z-index: 50 !important; }
+
+        /* --- Alt Kısım ve Kendi Elim --- */
+        .bottom-section { margin-top: auto; display: flex; flex-direction: column; padding: 10px; background: rgba(0,0,0,0.2); }
+        
+        .my-hand-container { display: flex; justify-content: center; padding: 30px 10px 10px 10px; overflow-x: auto; min-height: 150px; }
+        .my-hand-container .uno-card { margin-left: -35px; box-shadow: -2px 0px 8px rgba(0,0,0,0.3); }
+        .my-hand-container .uno-card:first-child { margin-left: 0; }
+        .my-hand-container .uno-card:hover:not(.disabled) { transform: translateY(-15px); z-index: 30 !important; }
+
+        .uno-btn { background: var(--danger-btn); color: white; border: none; padding: 12px; border-radius: 50px; width: 100%; font-size: 18px; font-weight: 800; box-shadow: var(--shadow); cursor: pointer; margin-bottom: 10px; margin-top: 5px; }
+        
+        /* Oyuncular Grid */
+        .players-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .player-box { background: var(--card-bg); padding: 8px; border-radius: 8px; text-align: center; color: var(--text-color); font-size: 12px; box-shadow: var(--shadow);}
+        .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px;}
+        .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
+
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="navbar-title-container">
+            <h2>UNO</h2>
+            <span id="room-id-display" onclick="copyAndShareRoom()"></span>
+        </div>
+        <button class="menu-btn" onclick="toggleMenu()">•••</button>
+    </div>
+
+    <div class="dropdown-menu" id="settings-menu">
+        <div class="menu-item" onclick="toggleTheme()">Karanlık/Aydınlık Tema</div>
+    </div>
+
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal">
+            <h3>Oyuna Katıl</h3>
+            <p style="font-size: 13px; color: gray; margin-top: 5px;">Aynı ağda oynamak için bir oda kurun veya katılın.</p>
+            <input type="text" id="player-name" placeholder="Adınız (örn: Erkan)">
+            <input type="text" id="room-code" placeholder="Oda Kodu (Katılmak için)">
+            <button class="btn btn-primary" onclick="createRoom()">Oda Kur</button>
+            <button class="btn btn-secondary" onclick="joinRoom()">Odaya Katıl</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="color-modal" style="display: none;">
+        <div class="modal">
+            <h3>Joker Rengini Seçin</h3>
+            <div class="color-grid">
+                <button class="color-btn" style="background: #ff3b30;" onclick="selectWildColor('Kırmızı')">Kırmızı</button>
+                <button class="color-btn" style="background: #007aff;" onclick="selectWildColor('Mavi')">Mavi</button>
+                <button class="color-btn" style="background: #34c759;" onclick="selectWildColor('Yeşil')">Yeşil</button>
+                <button class="color-btn" style="background: #ffcc00; color: black;" onclick="selectWildColor('Sarı')">Sarı</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-area" id="game-board">
+        
+        <div class="info-bar">
+            <div class="info-box" id="my-info">Oyuncu Bekleniyor...</div>
+            <div class="info-box highlight" id="action-log">Oyunun başlaması bekleniyor.</div>
+        </div>
+
+        <div class="table-center" id="table-center" ondragover="event.preventDefault()" ondrop="handleTableDrop(event)">
+            </div>
+
+        <div class="bottom-section">
+            <div class="my-hand-container" id="my-hand"></div>
+            <button class="uno-btn" onclick="declareUNO()">UNO Diye Bağır!</button>
+            <div class="players-grid" id="players-container"></div>
+        </div>
+
+    </div>
+
+    <script>
+        function toggleMenu() { document.getElementById('settings-menu').classList.toggle('active'); }
+        function toggleTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            toggleMenu();
+        }
+        let currentRoomCode = "";
+        function copyAndShareRoom() {
+            if(!currentRoomCode) return;
+            navigator.clipboard.writeText(currentRoomCode).then(() => {
+                if (navigator.share) navigator.share({ title: 'UNO Pro', text: 'Oda Kodu: ' + currentRoomCode }).catch(console.error);
+                else alert("Oda kodu kopyalandı: " + currentRoomCode);
+            });
+        }
+
+        function getCardColorHex(colorName) {
+            switch(colorName) {
+                case 'Kırmızı': return '#ff3b30'; case 'Mavi': return '#007aff';
+                case 'Yeşil': return '#34c759'; case 'Sarı': return '#ffcc00';
+                case 'Siyah': return '#1c1c1e'; default: return '#ffffff';
+            }
+        }
+        function getCardDisplayValue(value) {
+            if(value === 'Yön Değiştir') return '⇄';
+            if(value === 'Pas Geç') return '⊘';
+            if(value === 'Renk') return '🎨';
+            return value;
+        }
+
+        // --- GELİŞTİRİLMİŞ OYUN MOTORU (STRATEJİK KURALLAR EKLENDİ) ---
+        class UNOGame {
+            constructor(players) {
+                this.players = players;
+                this.deck = []; this.discardPile = [];
+                this.turnIndex = 0; this.direction = 1; 
+                this.currentColor = ''; 
+                this.turnCount = 1;
+                
+                // Katlamalı Ceza ve Tur Çekme Limitleri
+                this.pendingDraws = 0; 
+                this.pendingDrawType = null; 
+                this.drawsThisTurn = 0; // YENİ: Bir turda en fazla 2 kart çekilebilir
+
+                this.lastActionText = "Oyun başladı! Sıra " + this.players[0].name + " kişisinde.";
+                this.initDeck(); this.shuffleDeck();
+            }
+
+            initDeck() {
+                const colors = ['Kırmızı', 'Mavi', 'Yeşil', 'Sarı'];
+                colors.forEach(color => {
+                    this.deck.push({ color, value: '0' });
+                    for (let i = 1; i <= 9; i++) {
+                        this.deck.push({ color, value: i.toString() }); this.deck.push({ color, value: i.toString() });
+                    }
+                    ['+2', 'Pas Geç', 'Yön Değiştir'].forEach(action => {
+                        this.deck.push({ color, value: action }); this.deck.push({ color, value: action });
+                    });
+                });
+                for(let i=0; i<4; i++) {
+                    this.deck.push({ color: 'Siyah', value: 'Renk' });
+                    this.deck.push({ color: 'Siyah', value: '+4' });
+                }
+            }
+
+            shuffleDeck() { 
+                for (let i = this.deck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+                }
+            }
+
+            drawFromDeck() {
+                if (this.deck.length === 0) {
+                    if (this.discardPile.length <= 1) return { color: 'Siyah', value: 'Renk' }; // Güvenlik çemberi
+                    const topCard = this.discardPile.pop(); 
+                    this.deck = [...this.discardPile]; 
+                    this.discardPile = [topCard]; 
+                    this.shuffleDeck(); 
+                }
+                return this.deck.pop();
+            }
+
+            dealCards() {
+                this.players.forEach(p => { p.hand = []; p.saidUno = false; for(let i=0; i<7; i++) p.hand.push(this.drawFromDeck()); });
+                let firstCard = this.drawFromDeck();
+                while(firstCard.color === 'Siyah' || firstCard.value === 'Yön Değiştir' || firstCard.value === 'Pas Geç' || firstCard.value === '+2') {
+                    this.deck.push(firstCard); this.shuffleDeck(); firstCard = this.drawFromDeck();
+                }
+                this.discardPile.push(firstCard);
+                this.currentColor = firstCard.color;
+            }
+
+            nextTurn(skipCount = 1) {
+                this.turnIndex = (this.turnIndex + (this.direction * skipCount) + this.players.length) % this.players.length;
+                this.turnCount++;
+                this.drawsThisTurn = 0; // Sıra geçince çekme hakkı sıfırlanır
+            }
+
+            // YENİ ÇEKME MANTIĞI: Cezalar ve Pas Geçme
+            playerDrawCard(playerId) {
+                if (this.players[this.turnIndex].id !== playerId) return false;
+                const p = this.players.find(p => p.id === playerId);
+                
+                // 1. Durum: Masada bekleyen ceza var (Örn: +2 veya +4 yedi)
+                if (this.pendingDraws > 0) {
+                    for(let i=0; i < this.pendingDraws; i++) p.hand.push(this.drawFromDeck());
+                    this.lastActionText = `${p.name} ${this.pendingDraws} kartlık cezayı çekti! Şimdi uygun bir kartla karşılık verebilir veya kart çekebilir.`;
+                    this.pendingDraws = 0;
+                    this.pendingDrawType = null;
+                    p.saidUno = false;
+                    // DİKKAT: nextTurn() ÇAĞRILMAZ! Ceza çektikten sonra oyuncunun hamle hakkı devam eder.
+                    return true;
+                }
+
+                // 2. Durum: Normal turda pas geçmek veya oynayacak kartı olmadığı için çekme
+                let c = this.drawFromDeck();
+                if(c) p.hand.push(c);
+                p.saidUno = false;
+                this.drawsThisTurn++;
+
+                if (this.drawsThisTurn >= 2) {
+                    // Maksimum 2 kart çekti, artık mecburen turu biter
+                    let nextP = this.players[(this.turnIndex + this.direction + this.players.length) % this.players.length].name;
+                    this.lastActionText = `${p.name} pas geçmek için 2 kart çekti. Sıra ${nextP}'da.`;
+                    this.nextTurn();
+                } else {
+                    // 1 kart çekti, henüz turu bitmedi
+                    this.lastActionText = `${p.name} 1 kart çekti. Atacak kartı yoksa 2. kartı çekip pas geçmek zorunda.`;
+                }
+                
+                return true;
+            }
+
+            isValidMove(card) {
+                if (this.pendingDraws > 0) {
+                    // Masada ceza varsa SADECE aynı tür ceza kartı atılabilir. 
+                    // +4 üstüne +2, veya +2 üstüne +4 atılamaz!
+                    return card.value === this.pendingDrawType;
+                }
+                const topCard = this.discardPile[this.discardPile.length - 1];
+                if (card.color === 'Siyah') return true;
+                return card.color === this.currentColor || card.value === topCard.value;
+            }
+
+            playCard(playerId, cardData) {
+                if (this.players[this.turnIndex].id !== playerId) return { success: false };
+                const player = this.players.find(p => p.id === playerId);
+                const cardIndex = player.hand.findIndex(c => c.color === cardData.color && c.value === cardData.value);
+                if (cardIndex === -1) return { success: false };
+
+                const cardToPlay = player.hand[cardIndex];
+                if (!this.isValidMove(cardToPlay)) return { success: false };
+
+                this.discardPile.push(cardToPlay);
+                player.hand.splice(cardIndex, 1);
+                this.currentColor = cardToPlay.color === 'Siyah' ? cardData.selectedColor : cardToPlay.color;
+                
+                let skipTurns = 1;
+
+                if (this.pendingDraws > 0) {
+                    // Sadece doğru tipteki cezalar katlanarak artar (+2 -> +2 gibi)
+                    if (cardToPlay.value === '+2') this.pendingDraws += 2;
+                    if (cardToPlay.value === '+4') this.pendingDraws += 4;
+                } else {
+                    if (cardToPlay.value === 'Yön Değiştir') { this.direction *= -1; if(this.players.length === 2) skipTurns = 2; } 
+                    else if (cardToPlay.value === 'Pas Geç') { skipTurns = 2; }
+                    else if (cardToPlay.value === '+2') { this.pendingDraws = 2; this.pendingDrawType = '+2'; }
+                    else if (cardToPlay.value === '+4') { this.pendingDraws = 4; this.pendingDrawType = '+4'; }
+                }
+
+                if (player.hand.length === 1 && !player.saidUno) { player.hand.push(this.drawFromDeck(), this.drawFromDeck()); }
+                if (player.hand.length === 0) return { success: true, gameOver: true, winner: player };
+
+                // Kart atıldığı an oyuncunun turu biter
+                this.nextTurn(skipTurns);
+                
+                let nextPlayerName = this.players[this.turnIndex].name;
+                let cName = cardToPlay.color === 'Siyah' ? `Joker (${this.currentColor})` : `${cardToPlay.color} ${cardToPlay.value}`;
+                
+                if (this.pendingDraws > 0) {
+                    this.lastActionText = `DİKKAT! ${player.name} ${cName} attı. ${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
+                } else {
+                    this.lastActionText = `${player.name} ${cName} attı, sıra ${nextPlayerName}'da.`;
+                }
+
+                return { success: true, gameOver: false };
+            }
+        }
+
+        // --- AĞ (PEERJS) ---
+        let peer = new Peer(); 
+        let connections = []; let isHost = false; let gameInstance = null; let myId = null; let hostConnection = null;
+        let pendingWildCard = null; let currentMyHand = []; let myPlayerIndex = 0;
+
+        peer.on('open', (id) => { myId = id; });
+
+        function createRoom() {
+            isHost = true;
+            const myName = document.getElementById('player-name').value || "Oyuncu 1";
+            currentRoomCode = myId;
+            document.getElementById('room-id-display').innerText = `Oda: ${myId}`;
+            connections.push({ id: myId, name: myName, conn: 'host' });
+            
+            document.getElementById('login-modal').style.display = 'none';
+            document.getElementById('game-board').style.display = 'flex';
+            document.getElementById('action-log').innerText = "Diğer oyuncular bekleniyor...";
+
+            peer.on('connection', (conn) => {
+                conn.on('data', (data) => handleIncomingData(data, conn.peer));
+                connections.push({ id: conn.peer, name: "Bağlanıyor...", conn: conn });
+                if (connections.length >= 2 && !gameInstance) startGameAsHost();
+            });
+        }
+
+        function joinRoom() {
+            const code = document.getElementById('room-code').value;
+            const myName = document.getElementById('player-name').value || "Oyuncu Katıldı";
+            currentRoomCode = code;
+            
+            hostConnection = peer.connect(code);
+            hostConnection.on('open', () => {
+                hostConnection.send({ type: 'join', name: myName });
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('game-board').style.display = 'flex';
+                document.getElementById('room-id-display').innerText = `Oda: ${code}`;
+            });
+            hostConnection.on('data', (data) => { handleIncomingData(data, 'host'); });
+        }
+
+        function sendGameAction(actionType, payload = {}) {
+            payload.type = actionType;
+            if (isHost) handleIncomingData(payload, myId); 
+            else if(hostConnection) hostConnection.send(payload);
+        }
+
+        function startGameAsHost() {
+            gameInstance = new UNOGame(connections.map(c => ({ id: c.id, name: c.name, hand: [], score: 0, saidUno: false })));
+            gameInstance.dealCards(); broadcastGameState();
+        }
+
+        function broadcastGameState() {
+            if(!gameInstance) return;
+            const topCard = gameInstance.discardPile[gameInstance.discardPile.length - 1];
+            connections.forEach((player, index) => {
+                const pData = gameInstance.players.find(p => p.id === player.id);
+                const payload = {
+                    type: 'state_update',
+                    topCard: topCard, currentColor: gameInstance.currentColor,
+                    myHand: pData.hand, activeTurnId: gameInstance.players[gameInstance.turnIndex].id,
+                    playersStatus: gameInstance.players.map(p => ({ id: p.id, name: p.name, cardCount: p.hand.length })),
+                    lastActionText: gameInstance.lastActionText, turnCount: gameInstance.turnCount, myIndex: index + 1,
+                    pendingDraws: gameInstance.pendingDraws, pendingDrawType: gameInstance.pendingDrawType,
+                    drawsThisTurn: gameInstance.drawsThisTurn // Güncel çekme sayısı
+                };
+                if (player.conn === 'host') updateUI(payload); else player.conn.send(payload);
+            });
+        }
+
+        function handleIncomingData(data, senderId) {
+            if (data.type === 'state_update') updateUI(data); 
+            else if (data.type === 'game_over') triggerWinAnimation(data.winnerName);
+            else if (isHost) {
+                if (data.type === 'join') {
+                    let p = connections.find(c => c.id === senderId); 
+                    if(p) p.name = data.name;
+                    if(gameInstance) {
+                        let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
+                        if(gamePlayer) gamePlayer.name = data.name;
+                        broadcastGameState(); 
+                    }
+                }
+                else if (data.type === 'play_card') {
+                    let result = gameInstance.playCard(senderId, data.card);
+                    if (result.success) {
+                        broadcastGameState();
+                        if(result.gameOver) connections.forEach(p => { let go = {type:'game_over', winnerName:result.winner.name}; p.conn==='host'?triggerWinAnimation(go.winnerName):p.conn.send(go); });
+                    }
+                }
+                else if (data.type === 'draw_card') { if (gameInstance.playerDrawCard(senderId)) broadcastGameState(); }
+                else if (data.type === 'declare_uno') { let p = gameInstance.players.find(p => p.id === senderId); if(p) { p.saidUno = true; broadcastGameState(); } }
+                else if (data.type === 'reorder_hand') {
+                    let p = gameInstance.players.find(p => p.id === senderId);
+                    if (p) { p.hand.splice(data.toIndex, 0, p.hand.splice(data.fromIndex, 1)[0]); broadcastGameState(); }
+                }
+            }
+        }
+
+        function generateCardHTML(card, sizeClass, customColor = null, interactable = false, index = -1) {
+            let bgColor = getCardColorHex(customColor || card.color);
+            let textColor = (bgColor === '#1c1c1e' || bgColor === '#ffffff') ? 'black' : bgColor;
+            if(bgColor === '#ffcc00') textColor = 'black'; 
+            let dispVal = getCardDisplayValue(card.value);
+            
+            let idAndEvents = interactable ? `id="card-${index}" draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="event.preventDefault()" ondrop="handleDropInHand(event, ${index})" onclick="handleCardClick(${index})"` : '';
+            let zIndex = index >= 0 ? index : 10; 
+
+            return `
+                <div class="uno-card ${sizeClass}" ${idAndEvents} style="background:${bgColor}; z-index:${zIndex};">
+                    <div class="uno-inner" style="background:${bgColor};">
+                        <span class="uno-corner top-left">${dispVal}</span>
+                        <div class="uno-oval"></div>
+                        <span class="uno-center-val" style="color:${textColor};">${dispVal}</span>
+                        <span class="uno-corner bottom-right">${dispVal}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        let selectedCardIndex = null;
+
+        function updateUI(gameState) {
+            const isMyTurn = gameState.activeTurnId === myId;
+            currentMyHand = gameState.myHand;
+            const me = gameState.playersStatus.find(p => p.id === myId);
+
+            document.getElementById('my-info').innerHTML = `Oyuncu ${gameState.myIndex}<br><small>(${me ? me.name : ''}) - Tur: ${gameState.turnCount}</small>`;
+            
+            const logBox = document.getElementById('action-log');
+            logBox.innerHTML = gameState.lastActionText;
+            
+            // Log paneli uyarıları
+            if (isMyTurn && gameState.pendingDraws > 0) {
+                logBox.classList.add('penalty-active');
+                logBox.innerHTML = `⚠️ Üzerinde ${gameState.pendingDraws} ceza var! Ya ${gameState.pendingDrawType} atarak katla, ya da Deste'ye basıp cezayı çek!`;
+            } else if (isMyTurn && gameState.drawsThisTurn === 1) {
+                logBox.classList.remove('penalty-active');
+                logBox.innerHTML = `1 kart çektin. Uygun kartın varsa atabilirsin, yoksa 2. kartı çekip sırayı mecburen devret.`;
+            } else {
+                logBox.classList.remove('penalty-active');
+            }
+
+            // Deste Butonunun Metnini Oyuncunun Durumuna Göre Ayarlama
+            let deckText = "DESTE";
+            if (isMyTurn) {
+                if (gameState.pendingDraws > 0) deckText = "CEZAYI<br>ÇEK";
+                else if (gameState.drawsThisTurn === 1) deckText = "PAS GEÇ<br>(ÇEK)";
+                else deckText = "KART<br>ÇEK";
+            }
+
+            document.getElementById('table-center').innerHTML = `
+                <div class="deck-area">
+                    <span>Deste</span>
+                    <div class="uno-card normal back" onclick="${isMyTurn ? 'drawCardFromDeck()' : ''}" style="${isMyTurn ? 'box-shadow: 0 0 15px #34c759; cursor: pointer;' : 'cursor: default;'}">
+                        <div class="uno-inner">
+                            <div class="uno-oval"></div>
+                            <span class="uno-center-val" style="font-size:16px; text-align:center;">${deckText}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="played-area">
+                    <span>Atılan Son Kart</span>
+                    ${generateCardHTML(gameState.topCard, 'large', gameState.currentColor)}
+                </div>
+            `;
+
+            const pContainer = document.getElementById('players-container');
+            pContainer.innerHTML = '';
+            gameState.playersStatus.forEach(p => {
+                pContainer.innerHTML += `
+                    <div class="player-box ${p.id === gameState.activeTurnId ? 'active-player' : ''}">
+                        <div class="name">${p.name}</div>
+                        Kalan: ${p.cardCount}
+                    </div>
+                `;
+            });
+
+            const handContainer = document.getElementById('my-hand');
+            handContainer.innerHTML = '';
+            selectedCardIndex = null; 
+
+            currentMyHand.forEach((card, index) => {
+                let canPlay = false;
+                if (isMyTurn) {
+                    if (gameState.pendingDraws > 0) {
+                        // Masada ceza varken sadece aynı tip kart oynanabilir
+                        canPlay = (card.value === gameState.pendingDrawType);
+                    } else {
+                        // Ceza yoksa veya ceza çekildikten sonra normal kurallar işler
+                        canPlay = (card.color === 'Siyah' || card.color === gameState.currentColor || card.value === gameState.topCard.value);
+                    }
+                }
+
+                let cardHTML = generateCardHTML(card, 'normal', null, true, index);
+                
+                let wrapper = document.createElement('div');
+                wrapper.innerHTML = cardHTML;
+                let cardElement = wrapper.firstElementChild;
+                
+                if(!canPlay) {
+                    cardElement.classList.add('disabled');
+                } else {
+                    cardElement.classList.add('playable');
+                }
+                
+                handContainer.appendChild(cardElement);
+            });
+        }
+
+        function handleCardClick(index) {
+            const cardEl = document.getElementById(`card-${index}`);
+            if (!cardEl.classList.contains('playable')) return;
+            if (selectedCardIndex === index) { attemptPlayCard(currentMyHand[index]); selectedCardIndex = null; } 
+            else {
+                document.querySelectorAll('#my-hand .uno-card').forEach(c => c.classList.remove('selected'));
+                cardEl.classList.add('selected'); selectedCardIndex = index;
+            }
+        }
+
+        let draggedCardIndex = null;
+        function handleDragStart(e, index) { draggedCardIndex = index; e.dataTransfer.effectAllowed = 'move'; }
+        function handleDropInHand(e, targetIndex) {
+            e.preventDefault(); e.stopPropagation();
+            if (draggedCardIndex !== null && draggedCardIndex !== targetIndex) sendGameAction('reorder_hand', { fromIndex: draggedCardIndex, toIndex: targetIndex });
+            draggedCardIndex = null;
+        }
+        function handleTableDrop(e) {
+            e.preventDefault();
+            if (draggedCardIndex !== null) {
+                const cardEl = document.getElementById(`card-${draggedCardIndex}`);
+                if (cardEl && cardEl.classList.contains('playable')) attemptPlayCard(currentMyHand[draggedCardIndex]);
+                draggedCardIndex = null;
+            }
+        }
+
+        function attemptPlayCard(card) {
+            if (card.color === 'Siyah') { pendingWildCard = card; document.getElementById('color-modal').style.display = 'flex'; } 
+            else { sendGameAction('play_card', { card: card }); }
+        }
+        function selectWildColor(color) {
+            document.getElementById('color-modal').style.display = 'none';
+            if (pendingWildCard) { pendingWildCard.selectedColor = color; sendGameAction('play_card', { card: pendingWildCard }); pendingWildCard = null; }
+        }
+        function drawCardFromDeck() { sendGameAction('draw_card'); }
+        function declareUNO() { sendGameAction('declare_uno'); alert("UNO Diye Bağırdın!"); }
+
+        function triggerWinAnimation(winnerName) {
+            document.getElementById('game-board').innerHTML = `
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white;">
+                    <h1 style="font-size:40px;">${winnerName}</h1>
+                    <h2 style="margin-top:10px;">KAZANDI!</h2>
+                    <button class="btn btn-primary" style="margin-top:30px; width:200px;" onclick="location.reload()">Yeniden Oyna</button>
+                </div>
+            `;
+            var end = Date.now() + 5000;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 300 });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 300 });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+    </script>
+    <script>
+        // Service Worker Kaydı (PWA için)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker başarıyla kaydedildi. Kapsam: ', registration.scope);
+                    }, (err) => {
+                        console.log('ServiceWorker kaydı başarısız oldu: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
