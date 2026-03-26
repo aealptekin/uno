@@ -9,22 +9,15 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        :root {
-            --bg-color: #f2f2f7; --text-color: #000000; --nav-bg: rgba(255, 255, 255, 0.9);
-            --card-bg: #ffffff; --primary-btn: #007aff; --danger-btn: #ff3b30;
-            --border-color: #c6c6c8; --shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        [data-theme="dark"] {
-            --bg-color: #000000; --text-color: #ffffff; --nav-bg: rgba(28, 28, 30, 0.9);
-            --card-bg: #1c1c1e; --border-color: #38383a; --shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
+        :root { --bg-color: #f2f2f7; --text-color: #000000; --nav-bg: rgba(255, 255, 255, 0.9); --card-bg: #ffffff; --primary-btn: #007aff; --danger-btn: #ff3b30; --border-color: #c6c6c8; --shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        [data-theme="dark"] { --bg-color: #000000; --text-color: #ffffff; --nav-bg: rgba(28, 28, 30, 0.9); --card-bg: #1c1c1e; --border-color: #38383a; --shadow: 0 4px 12px rgba(0,0,0,0.5); }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; touch-action: manipulation; }
         body { background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; display: flex; flex-direction: column; height: 100vh; }
 
-        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); z-index: 100; overflow: hidden; width: 100%; }
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); z-index: 100; }
         .navbar-title-container { display: flex; align-items: center; overflow: hidden; flex-grow: 1; margin-right: 10px; }
         .navbar h2 { margin: 0; font-size: 20px; font-weight: bold; flex-shrink: 0; }
-        #room-id-display { margin-left: 10px; font-size: 14px; color: var(--primary-btn); cursor: pointer; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; max-width: 65vw; }
+        #room-id-display { margin-left: 10px; font-size: 14px; color: var(--primary-btn); cursor: pointer; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65vw; }
         .menu-btn { background: none; border: none; font-size: 24px; color: var(--primary-btn); cursor: pointer; flex-shrink: 0; }
         
         .dropdown-menu { display: none; position: absolute; top: 50px; right: 20px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); width: 200px; z-index: 101; border: 1px solid var(--border-color); }
@@ -34,9 +27,8 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 200; }
         .modal { background: var(--card-bg); width: 90%; max-width: 350px; border-radius: 14px; padding: 20px; text-align: center; box-shadow: var(--shadow); }
         .modal input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border-color); font-size: 16px; background:var(--bg-color); color:var(--text-color); }
-        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; transition: opacity 0.2s; }
+        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; }
         .btn-primary { background: var(--primary-btn); }
-        .btn-secondary { background: #8e8e93; }
 
         .color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .color-btn { height: 60px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; color: white; font-size: 16px; box-shadow: var(--shadow); }
@@ -49,6 +41,7 @@
         .penalty-active { border: 2px solid #ff3b30 !important; background: rgba(255, 59, 48, 0.3) !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48, 0); } }
 
+        /* MESAJ EKRANI (ÜST KISIM) */
         .chat-display { width: 100%; background: var(--card-bg); color: var(--text-color); padding: 5px 15px; font-size: 13px; font-weight: bold; min-height: 25px; display: flex; flex-direction: column; justify-content: center; gap: 3px; border-bottom: 1px solid var(--border-color); }
         .chat-message { margin: 0; line-height: 1.2; word-wrap: break-word; display: flex; align-items: center; gap: 5px; }
 
@@ -71,12 +64,10 @@
         .uno-card.back .uno-inner { background: #1c1c1e; }
         .uno-card.back .uno-oval { background: #ff3b30; }
         .uno-card.back .uno-center-val { color: #ffcc00; font-size: 24px; text-shadow: 2px 2px 0px black; transform: rotate(-25deg); }
-
         .uno-card.disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(50%); }
         .uno-card.selected { transform: translateY(-25px) scale(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.6); z-index: 50 !important; border: 2px solid #34c759; }
 
         .bottom-section { margin-top: auto; display: flex; flex-direction: column; padding: 10px; background: rgba(0,0,0,0.2); }
-        
         .my-hand-container { display: flex; justify-content: center; padding: 30px 10px 10px 10px; overflow-x: auto; min-height: 150px; }
         .my-hand-container .uno-card { margin-left: -35px; box-shadow: -2px 0px 8px rgba(0,0,0,0.3); }
         .my-hand-container .uno-card:first-child { margin-left: 0; }
@@ -89,15 +80,16 @@
         .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
 
+        /* MESAJ GÖNDERME SATIRI (ALT KISIM) */
         .chat-input-container { display: flex; background: var(--card-bg); padding: 8px 10px; border-top: 1px solid var(--border-color); align-items: center; z-index: 100;}
         .chat-input-container input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 14px; outline: none; background: var(--bg-color); color: var(--text-color); }
         .chat-input-container button { background: none; border: none; cursor: pointer; padding: 0 0 0 10px; display: flex; align-items: center; justify-content: center; }
         .chat-input-container button svg { fill: #34c759; width: 28px; height: 28px; transform: rotate(-15deg); }
         
+        /* SES KAYDEDİCİ BUTONU */
         #mic-btn { font-size: 24px; padding: 0 5px; outline: none; transition: transform 0.2s; }
         .recording-pulse { animation: micPulse 1s infinite; }
         @keyframes micPulse { 0% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0.7); } 50% { transform: scale(1.2); text-shadow: 0 0 10px rgba(255,59,48,1); } 100% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0); } }
-
     </style>
 </head>
 <body>
@@ -146,7 +138,6 @@
     </div>
 
     <div class="game-area" id="game-board">
-        
         <div class="info-bar">
             <div class="info-box" id="my-info">Oyuncu Bekleniyor...</div>
             <div class="info-box highlight" id="action-log">Oyunun başlaması bekleniyor.</div>
@@ -154,8 +145,7 @@
 
         <div id="chat-display" class="chat-display"></div>
 
-        <div class="table-center" id="table-center" ondragover="event.preventDefault()" ondrop="handleTableDrop(event)">
-        </div>
+        <div class="table-center" id="table-center" ondragover="event.preventDefault()" ondrop="handleTableDrop(event)"></div>
 
         <div class="bottom-section">
             <div class="my-hand-container" id="my-hand"></div>
@@ -170,7 +160,6 @@
                 <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
             </button>
         </div>
-
     </div>
 
     <script>
@@ -222,17 +211,10 @@
                 const colors = ['Kırmızı', 'Mavi', 'Yeşil', 'Sarı'];
                 colors.forEach(color => {
                     this.deck.push({ color, value: '0' });
-                    for (let i = 1; i <= 9; i++) {
-                        this.deck.push({ color, value: i.toString() }); this.deck.push({ color, value: i.toString() });
-                    }
-                    ['+2', 'Pas Geç', 'Yön Değiştir'].forEach(action => {
-                        this.deck.push({ color, value: action }); this.deck.push({ color, value: action });
-                    });
+                    for (let i = 1; i <= 9; i++) { this.deck.push({ color, value: i.toString() }); this.deck.push({ color, value: i.toString() }); }
+                    ['+2', 'Pas Geç', 'Yön Değiştir'].forEach(action => { this.deck.push({ color, value: action }); this.deck.push({ color, value: action }); });
                 });
-                for(let i=0; i<4; i++) {
-                    this.deck.push({ color: 'Siyah', value: 'Renk' });
-                    this.deck.push({ color: 'Siyah', value: '+4' });
-                }
+                for(let i=0; i<4; i++) { this.deck.push({ color: 'Siyah', value: 'Renk' }); this.deck.push({ color: 'Siyah', value: '+4' }); }
             }
 
             shuffleDeck() { 
@@ -278,7 +260,6 @@
             playerDrawCard(playerId) {
                 if (this.players[this.turnIndex].id !== playerId) return false;
                 const p = this.players.find(p => p.id === playerId);
-                
                 p.saidUno = false;
 
                 if (this.pendingDraws > 0) {
@@ -300,14 +281,11 @@
                 } else {
                     this.lastActionText = `${p.name} 1 kart çekti. Atacak kartı yoksa 2. kartı çekip pas geçmek zorunda.`;
                 }
-                
                 return true;
             }
 
             isValidMove(card) {
-                if (this.pendingDraws > 0) {
-                    return card.value === this.pendingDrawType;
-                }
+                if (this.pendingDraws > 0) return card.value === this.pendingDrawType;
                 const topCard = this.discardPile[this.discardPile.length - 1];
                 if (card.color === 'Siyah') return true;
                 return card.color === this.currentColor || card.value === topCard.value;
@@ -326,34 +304,25 @@
                 const isActionCard = ['Yön Değiştir', 'Pas Geç', '+2', '+4', 'Renk'].includes(cardToPlay.value);
                 let matchingCards = isActionCard ? [cardToPlay] : player.hand.filter(c => c.value === cardToPlay.value);
                 
-                const isValidCombo = matchingCards.some(c => this.isValidMove(c));
-                if (!isValidCombo) return { success: false };
-
+                if (!matchingCards.some(c => this.isValidMove(c))) return { success: false };
                 const comboCount = matchingCards.length;
 
                 let topCardInfo = cardData.topComboCard || cardToPlay;
                 let topCard = matchingCards.find(c => c.color === topCardInfo.color && c.value === topCardInfo.value) || cardToPlay;
 
                 player.hand = player.hand.filter(c => !matchingCards.includes(c));
-
-                matchingCards.forEach(c => {
-                    if (c !== topCard) this.discardPile.push(c);
-                });
+                matchingCards.forEach(c => { if (c !== topCard) this.discardPile.push(c); });
                 this.discardPile.push(topCard);
                 
                 this.currentColor = topCard.color === 'Siyah' ? cardData.card.selectedColor : topCard.color;
                 
                 let skipTurns = 1;
-
                 if (this.pendingDraws > 0) {
                     if (cardToPlay.value === '+2') this.pendingDraws += 2;
                     if (cardToPlay.value === '+4') this.pendingDraws += 4;
                 } else {
-                    if (cardToPlay.value === 'Yön Değiştir') { 
-                        this.direction *= -1; 
-                        if (this.players.length === 2) skipTurns = 2; 
-                    } 
-                    else if (cardToPlay.value === 'Pas Geç') { skipTurns = 2; } 
+                    if (cardToPlay.value === 'Yön Değiştir') { this.direction *= -1; if (this.players.length === 2) skipTurns = 2; } 
+                    else if (cardToPlay.value === 'Pas Geç') skipTurns = 2; 
                     else if (cardToPlay.value === '+2') { this.pendingDraws = 2; this.pendingDrawType = '+2'; }
                     else if (cardToPlay.value === '+4') { this.pendingDraws = 4; this.pendingDrawType = '+4'; }
                 }
@@ -366,18 +335,11 @@
                 let cName = topCard.color === 'Siyah' ? `Joker (${this.currentColor})` : `${topCard.color} ${topCard.value}`;
                 let actionMsg = `${player.name} ${comboCount > 1 ? comboCount + ' adet ' : ''}${cName} attı.`;
                 
-                if (this.pendingDraws > 0) {
-                    this.lastActionText = `DİKKAT! ${actionMsg} ${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
-                } else {
-                    this.lastActionText = `${actionMsg} Sıra ${nextPlayerName}'da.`;
-                }
+                if (this.pendingDraws > 0) this.lastActionText = `DİKKAT! ${actionMsg} ${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
+                else this.lastActionText = `${actionMsg} Sıra ${nextPlayerName}'da.`;
 
-                if (player.hand.length > 1) {
-                    player.saidUno = false;
-                }
-
+                if (player.hand.length > 1) player.saidUno = false;
                 this.nextTurn(skipTurns);
-
                 return { success: true, gameOver: false };
             }
         }
@@ -391,7 +353,7 @@
 
         peer.on('open', (id) => { myId = id; });
 
-        // ESKİ, SAĞLAM ODA KURMA FONKSİYONU
+        // TERTEMİZ ESKİ BAĞLANTI KODLARI
         function createRoom() {
             isHost = true;
             const myName = document.getElementById('player-name').value || "Oyuncu 1";
@@ -410,7 +372,6 @@
             });
         }
 
-        // ESKİ, SAĞLAM ODAYA KATILMA FONKSİYONU (Hiçbir gecikme veya kontrol kilitlenmesi yok)
         function joinRoom() {
             const code = document.getElementById('room-code').value;
             const myName = document.getElementById('player-name').value || "Oyuncu Katıldı";
@@ -448,9 +409,7 @@
             broadcastGameState();
         }
 
-        function requestRestart() {
-            sendGameAction('restart_game');
-        }
+        function requestRestart() { sendGameAction('restart_game'); }
 
         function broadcastGameState() {
             if(!gameInstance) return;
@@ -458,16 +417,13 @@
             connections.forEach((player, index) => {
                 const pData = gameInstance.players.find(p => p.id === player.id);
                 if(!pData) return; 
-
                 const payload = {
-                    type: 'state_update',
-                    topCard: topCard, currentColor: gameInstance.currentColor,
+                    type: 'state_update', topCard: topCard, currentColor: gameInstance.currentColor,
                     myHand: pData.hand, activeTurnId: gameInstance.players[gameInstance.turnIndex].id,
                     playersStatus: gameInstance.players.map(p => ({ id: p.id, name: p.name, cardCount: p.hand.length })),
                     lastActionText: gameInstance.lastActionText, turnCount: gameInstance.turnCount, myIndex: index + 1,
                     pendingDraws: gameInstance.pendingDraws, pendingDrawType: gameInstance.pendingDrawType,
-                    drawsThisTurn: gameInstance.drawsThisTurn,
-                    chatHistory: globalChatHistory 
+                    drawsThisTurn: gameInstance.drawsThisTurn, chatHistory: globalChatHistory 
                 };
                 if (player.conn === 'host') updateUI(payload); else player.conn.send(payload);
             });
@@ -480,20 +436,16 @@
                 if (data.type === 'join') {
                     let p = connections.find(c => c.id === senderId); 
                     if(p) p.name = data.name;
-                    
                     if(gameInstance) {
                         let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
-                        if(gamePlayer) {
-                            gamePlayer.name = data.name;
-                        } else {
+                        if(gamePlayer) gamePlayer.name = data.name;
+                        else {
                             let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
                             for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
                             gameInstance.players.push(newP);
                         }
                         broadcastGameState(); 
-                    } else if (connections.length >= 2) {
-                        startGameAsHost();
-                    }
+                    } else if (connections.length >= 2) startGameAsHost();
                 }
                 else if (data.type === 'play_card') {
                     let result = gameInstance.playCard(senderId, data);
@@ -503,35 +455,24 @@
                     }
                 }
                 else if (data.type === 'draw_card') { if (gameInstance.playerDrawCard(senderId)) broadcastGameState(); }
-                
                 else if (data.type === 'declare_uno') { 
                     let p = gameInstance.players.find(p => p.id === senderId);
-                    if (p) {
-                        p.saidUno = true;
-                        gameInstance.lastActionText = `📢 <b>${p.name}</b> "UNO" DİYE BAĞIRDI!`;
-                        broadcastGameState(); 
-                    }
+                    if (p) { p.saidUno = true; gameInstance.lastActionText = `📢 <b>${p.name}</b> "UNO" DİYE BAĞIRDI!`; broadcastGameState(); }
                 }
-                
                 else if (data.type === 'reorder_hand') {
                     let p = gameInstance.players.find(p => p.id === senderId);
                     if (p) { p.hand.splice(data.toIndex, 0, p.hand.splice(data.fromIndex, 1)[0]); broadcastGameState(); }
                 }
-                else if (data.type === 'restart_game') {
-                    startGameAsHost();
-                }
+                else if (data.type === 'restart_game') startGameAsHost();
                 else if (data.type === 'chat_message') {
                     let p = connections.find(c => c.id === senderId);
-                    let senderName = p ? p.name : "Oyuncu";
-                    globalChatHistory.push(`<div class="chat-message"><span style="color:var(--primary-btn);">${senderName}:</span> ${data.text}</div>`);
+                    globalChatHistory.push(`<div class="chat-message"><span style="color:var(--primary-btn);">${p ? p.name : "Oyuncu"}:</span> ${data.text}</div>`);
                     if (globalChatHistory.length > 3) globalChatHistory.shift();
                     broadcastGameState();
                 }
                 else if (data.type === 'chat_audio') {
                     let p = connections.find(c => c.id === senderId);
-                    let senderName = p ? p.name : "Oyuncu";
-                    let audioHtml = `<div class="chat-message"><span style="color:var(--danger-btn);">${senderName}:</span> <audio controls src="${data.audioData}" style="height:25px; width:150px; outline:none; border-radius:15px;"></audio></div>`;
-                    globalChatHistory.push(audioHtml);
+                    globalChatHistory.push(`<div class="chat-message"><span style="color:var(--danger-btn);">${p ? p.name : "Oyuncu"}:</span> <audio controls src="${data.audioData}" style="height:25px; width:150px; outline:none; border-radius:15px;"></audio></div>`);
                     if (globalChatHistory.length > 3) globalChatHistory.shift();
                     broadcastGameState();
                 }
@@ -540,23 +481,17 @@
 
         function generateCardHTML(card, sizeClass, customColor = null, interactable = false, index = -1) {
             let bgColor = getCardColorHex(customColor || card.color);
-            let textColor = (bgColor === '#1c1c1e' || bgColor === '#ffffff') ? 'black' : bgColor;
-            if(bgColor === '#ffcc00') textColor = 'black'; 
+            let textColor = (bgColor === '#1c1c1e' || bgColor === '#ffffff' || bgColor === '#ffcc00') ? 'black' : 'white';
             let dispVal = getCardDisplayValue(card.value);
-            
             let idAndEvents = interactable ? `id="card-${index}" draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="event.preventDefault()" ondrop="handleDropInHand(event, ${index})" onmousedown="handleCardClick(${index})"` : '';
-            let zIndex = index >= 0 ? index : 10; 
-
             return `
-                <div class="uno-card ${sizeClass}" ${idAndEvents} style="background:${bgColor}; z-index:${zIndex};">
+                <div class="uno-card ${sizeClass}" ${idAndEvents} style="background:${bgColor}; z-index:${index >= 0 ? index : 10};">
                     <div class="uno-inner" style="background:${bgColor};">
-                        <span class="uno-corner top-left">${dispVal}</span>
-                        <div class="uno-oval"></div>
+                        <span class="uno-corner top-left">${dispVal}</span><div class="uno-oval"></div>
                         <span class="uno-center-val" style="color:${textColor};">${dispVal}</span>
                         <span class="uno-corner bottom-right">${dispVal}</span>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
 
         let selectedCardIndex = null;
@@ -576,11 +511,7 @@
 
             const chatBox = document.getElementById('chat-display');
             chatBox.innerHTML = '';
-            if (gameState.chatHistory && gameState.chatHistory.length > 0) {
-                gameState.chatHistory.forEach(msg => {
-                    chatBox.innerHTML += msg;
-                });
-            }
+            if (gameState.chatHistory) gameState.chatHistory.forEach(msg => { chatBox.innerHTML += msg; });
             
             if (isMyTurn && gameState.pendingDraws > 0) {
                 logBox.classList.add('penalty-active');
@@ -588,42 +519,22 @@
             } else if (isMyTurn && gameState.drawsThisTurn === 1) {
                 logBox.classList.remove('penalty-active');
                 logBox.innerHTML = `1 kart çektin. Uygun kartın varsa atabilirsin, yoksa 2. kartı çekip sırayı mecburen devret.`;
-            } else {
-                logBox.classList.remove('penalty-active');
-            }
+            } else logBox.classList.remove('penalty-active');
 
-            let deckText = "DESTE";
-            if (isMyTurn) {
-                if (gameState.pendingDraws > 0) deckText = "CEZAYI<br>ÇEK";
-                else if (gameState.drawsThisTurn === 1) deckText = "PAS GEÇ<br>(ÇEK)";
-                else deckText = "KART<br>ÇEK";
-            }
+            let deckText = isMyTurn ? (gameState.pendingDraws > 0 ? "CEZAYI<br>ÇEK" : (gameState.drawsThisTurn === 1 ? "PAS GEÇ<br>(ÇEK)" : "KART<br>ÇEK")) : "DESTE";
 
             document.getElementById('table-center').innerHTML = `
-                <div class="deck-area">
-                    <span>Deste</span>
+                <div class="deck-area"><span>Deste</span>
                     <div class="uno-card normal back" onclick="${isMyTurn ? 'drawCardFromDeck()' : ''}" style="${isMyTurn ? 'box-shadow: 0 0 15px #34c759; cursor: pointer;' : 'cursor: default;'}">
-                        <div class="uno-inner">
-                            <div class="uno-oval"></div>
-                            <span class="uno-center-val" style="font-size:16px; text-align:center;">${deckText}</span>
-                        </div>
+                        <div class="uno-inner"><div class="uno-oval"></div><span class="uno-center-val" style="font-size:16px; text-align:center;">${deckText}</span></div>
                     </div>
                 </div>
-                <div class="played-area">
-                    <span>Atılan Son Kart</span>
-                    ${generateCardHTML(gameState.topCard, 'large', gameState.currentColor)}
-                </div>
-            `;
+                <div class="played-area"><span>Atılan Son Kart</span>${generateCardHTML(gameState.topCard, 'large', gameState.currentColor)}</div>`;
 
             const pContainer = document.getElementById('players-container');
             pContainer.innerHTML = '';
             gameState.playersStatus.forEach(p => {
-                pContainer.innerHTML += `
-                    <div class="player-box ${p.id === gameState.activeTurnId ? 'active-player' : ''}">
-                        <div class="name">${p.name}</div>
-                        Kalan: ${p.cardCount}
-                    </div>
-                `;
+                pContainer.innerHTML += `<div class="player-box ${p.id === gameState.activeTurnId ? 'active-player' : ''}"><div class="name">${p.name}</div>Kalan: ${p.cardCount}</div>`;
             });
 
             const handContainer = document.getElementById('my-hand');
@@ -633,33 +544,19 @@
             currentMyHand.forEach((card, index) => {
                 let canPlay = false;
                 if (isMyTurn) {
-                    if (gameState.pendingDraws > 0) {
-                        canPlay = (card.value === gameState.pendingDrawType);
-                    } else {
+                    if (gameState.pendingDraws > 0) canPlay = (card.value === gameState.pendingDrawType);
+                    else {
                         let isNormalValid = (card.color === 'Siyah' || card.color === gameState.currentColor || card.value === gameState.topCard.value);
                         let isActionCard = ['Yön Değiştir', 'Pas Geç', '+2', '+4', 'Renk'].includes(card.value);
                         let isComboValid = false;
-                        
-                        if (!isActionCard) {
-                            let matchingCards = currentMyHand.filter(c => c.value === card.value);
-                            isComboValid = matchingCards.some(c => c.color === 'Siyah' || c.color === gameState.currentColor || c.value === gameState.topCard.value);
-                        }
-                        
+                        if (!isActionCard) isComboValid = currentMyHand.filter(c => c.value === card.value).some(c => c.color === 'Siyah' || c.color === gameState.currentColor || c.value === gameState.topCard.value);
                         canPlay = isNormalValid || isComboValid;
                     }
                 }
-
-                let cardHTML = generateCardHTML(card, 'normal', null, true, index);
                 let wrapper = document.createElement('div');
-                wrapper.innerHTML = cardHTML;
+                wrapper.innerHTML = generateCardHTML(card, 'normal', null, true, index);
                 let cardElement = wrapper.firstElementChild;
-                
-                if(!canPlay) {
-                    cardElement.classList.add('disabled');
-                } else {
-                    cardElement.classList.add('playable');
-                }
-                
+                cardElement.classList.add(canPlay ? 'playable' : 'disabled');
                 handContainer.appendChild(cardElement);
             });
         }
@@ -676,33 +573,17 @@
 
         let draggedCardIndex = null;
         function handleDragStart(e, index) { draggedCardIndex = index; e.dataTransfer.effectAllowed = 'move'; }
-        function handleDropInHand(e, targetIndex) {
-            e.preventDefault(); e.stopPropagation();
-            if (draggedCardIndex !== null && draggedCardIndex !== targetIndex) sendGameAction('reorder_hand', { fromIndex: draggedCardIndex, toIndex: targetIndex });
-            draggedCardIndex = null;
-        }
-        function handleTableDrop(e) {
-            e.preventDefault();
-            if (draggedCardIndex !== null) {
-                const cardEl = document.getElementById(`card-${draggedCardIndex}`);
-                if (cardEl && cardEl.classList.contains('playable')) attemptPlayCard(currentMyHand[draggedCardIndex]);
-                draggedCardIndex = null;
-            }
-        }
+        function handleDropInHand(e, targetIndex) { e.preventDefault(); e.stopPropagation(); if (draggedCardIndex !== null && draggedCardIndex !== targetIndex) sendGameAction('reorder_hand', { fromIndex: draggedCardIndex, toIndex: targetIndex }); draggedCardIndex = null; }
+        function handleTableDrop(e) { e.preventDefault(); if (draggedCardIndex !== null) { const cardEl = document.getElementById(`card-${draggedCardIndex}`); if (cardEl && cardEl.classList.contains('playable')) attemptPlayCard(currentMyHand[draggedCardIndex]); draggedCardIndex = null; } }
 
         function attemptPlayCard(card) {
             if (card.color === 'Siyah') { 
-                pendingWildCard = card; 
-                document.getElementById('color-modal').style.display = 'flex'; 
+                pendingWildCard = card; document.getElementById('color-modal').style.display = 'flex'; 
             } else { 
                 let isActionCard = ['Yön Değiştir', 'Pas Geç', '+2', '+4', 'Renk'].includes(card.value);
                 const matchingCards = isActionCard ? [card] : currentMyHand.filter(c => c.value === card.value);
-                
-                if (matchingCards.length > 1) {
-                    showComboModal(matchingCards, card);
-                } else {
-                    sendGameAction('play_card', { card: card, topComboCard: card }); 
-                }
+                if (matchingCards.length > 1) showComboModal(matchingCards, card);
+                else sendGameAction('play_card', { card: card, topComboCard: card }); 
             }
         }
 
@@ -718,38 +599,14 @@
             document.getElementById('combo-modal').style.display = 'flex';
         }
 
-        function selectComboTop(color, value) {
-            document.getElementById('combo-modal').style.display = 'none';
-            sendGameAction('play_card', { card: pendingComboOriginalCard, topComboCard: {color, value} });
-            pendingComboOriginalCard = null;
-        }
-
-        function selectWildColor(color) {
-            document.getElementById('color-modal').style.display = 'none';
-            if (pendingWildCard) { 
-                pendingWildCard.selectedColor = color; 
-                sendGameAction('play_card', { card: pendingWildCard, topComboCard: pendingWildCard }); 
-                pendingWildCard = null; 
-            }
-        }
-        
+        function selectComboTop(color, value) { document.getElementById('combo-modal').style.display = 'none'; sendGameAction('play_card', { card: pendingComboOriginalCard, topComboCard: {color, value} }); pendingComboOriginalCard = null; }
+        function selectWildColor(color) { document.getElementById('color-modal').style.display = 'none'; if (pendingWildCard) { pendingWildCard.selectedColor = color; sendGameAction('play_card', { card: pendingWildCard, topComboCard: pendingWildCard }); pendingWildCard = null; } }
         function drawCardFromDeck() { sendGameAction('draw_card'); }
-        
-        function declareUNO() { 
-            sendGameAction('declare_uno'); 
-        }
+        function declareUNO() { sendGameAction('declare_uno'); }
 
         function triggerWinAnimation(winnerName) {
-            let winHtml = `
-                <div id="win-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:400; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white;">
-                    <h1 style="font-size:40px;">${winnerName}</h1>
-                    <h2 style="margin-top:10px;">KAZANDI!</h2>
-                    <button class="btn btn-primary" style="margin-top:30px; width:200px;" onclick="requestRestart()">Yeni El Başlat</button>
-                    <p style="margin-top:15px; font-size:12px; color:gray;">(Oda kapanmaz, herkes yeni ele geçer)</p>
-                </div>
-            `;
+            let winHtml = `<div id="win-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:400; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white;"><h1 style="font-size:40px;">${winnerName}</h1><h2 style="margin-top:10px;">KAZANDI!</h2><button class="btn btn-primary" style="margin-top:30px; width:200px;" onclick="requestRestart()">Yeni El Başlat</button><p style="margin-top:15px; font-size:12px; color:gray;">(Oda kapanmaz, herkes yeni ele geçer)</p></div>`;
             document.body.insertAdjacentHTML('beforeend', winHtml);
-            
             var end = Date.now() + 5000;
             (function frame() {
                 confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 500 });
@@ -758,64 +615,32 @@
             }());
         }
 
-        let mediaRecorder;
-        let audioChunks = [];
-        let isRecording = false;
+        let mediaRecorder; let audioChunks = []; let isRecording = false;
 
         async function toggleVoiceRecording() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("Tarayıcınız veya bağlantınız ses kaydını desteklemiyor! (Bu özellik sadece güvenli HTTPS bağlantılarında çalışır.)");
-                return;
-            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Ses kaydı için güvenli HTTPS bağlantısı veya mikrofon izni gerekiyor."); return; }
             const micBtn = document.getElementById('mic-btn');
-            
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
-                    
-                    mediaRecorder.ondataavailable = event => {
-                        audioChunks.push(event.data);
-                    };
-                    
+                    mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks);
-                        audioChunks = [];
-                        
-                        const reader = new FileReader();
-                        reader.readAsDataURL(audioBlob);
-                        reader.onloadend = () => {
-                            const base64AudioMessage = reader.result;
-                            sendGameAction('chat_audio', { audioData: base64AudioMessage });
-                        };
-                        
+                        const audioBlob = new Blob(audioChunks); audioChunks = [];
+                        const reader = new FileReader(); reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => { sendGameAction('chat_audio', { audioData: reader.result }); };
                         stream.getTracks().forEach(track => track.stop());
                     };
-                    
-                    audioChunks = [];
-                    mediaRecorder.start();
-                    isRecording = true;
-                    micBtn.innerHTML = '🛑';
-                    micBtn.classList.add('recording-pulse');
-                    
-                } catch (err) {
-                    alert("Ses kaydedilemedi. Cihazınızın mikrofon iznini kontrol edin.");
-                }
+                    audioChunks = []; mediaRecorder.start(); isRecording = true;
+                    micBtn.innerHTML = '🛑'; micBtn.classList.add('recording-pulse');
+                } catch (err) { alert("Ses kaydedilemedi. Mikrofon iznini kontrol edin."); }
             } else {
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                }
-                isRecording = false;
-                micBtn.innerHTML = '🎙️';
-                micBtn.classList.remove('recording-pulse');
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                isRecording = false; micBtn.innerHTML = '🎙️'; micBtn.classList.remove('recording-pulse');
             }
         }
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch((err) => {});
-            });
-        }
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch((err) => {}); }); }
     </script>
 </body>
 </html>
