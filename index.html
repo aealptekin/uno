@@ -41,7 +41,6 @@
         .penalty-active { border: 2px solid #ff3b30 !important; background: rgba(255, 59, 48, 0.3) !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48, 0); } }
 
-        /* MESAJ EKRANI (ÜST KISIM) */
         .chat-display { width: 100%; background: var(--card-bg); color: var(--text-color); padding: 5px 15px; font-size: 13px; font-weight: bold; min-height: 25px; display: flex; flex-direction: column; justify-content: center; gap: 3px; border-bottom: 1px solid var(--border-color); }
         .chat-message { margin: 0; line-height: 1.2; word-wrap: break-word; display: flex; align-items: center; gap: 5px; }
 
@@ -80,13 +79,11 @@
         .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
 
-        /* MESAJ GÖNDERME SATIRI (ALT KISIM) */
         .chat-input-container { display: flex; background: var(--card-bg); padding: 8px 10px; border-top: 1px solid var(--border-color); align-items: center; z-index: 100;}
         .chat-input-container input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 14px; outline: none; background: var(--bg-color); color: var(--text-color); }
         .chat-input-container button { background: none; border: none; cursor: pointer; padding: 0 0 0 10px; display: flex; align-items: center; justify-content: center; }
         .chat-input-container button svg { fill: #34c759; width: 28px; height: 28px; transform: rotate(-15deg); }
         
-        /* SES KAYDEDİCİ BUTONU */
         #mic-btn { font-size: 24px; padding: 0 5px; outline: none; transition: transform 0.2s; }
         .recording-pulse { animation: micPulse 1s infinite; }
         @keyframes micPulse { 0% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0.7); } 50% { transform: scale(1.2); text-shadow: 0 0 10px rgba(255,59,48,1); } 100% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0); } }
@@ -353,7 +350,6 @@
 
         peer.on('open', (id) => { myId = id; });
 
-        // TERTEMİZ ESKİ BAĞLANTI KODLARI
         function createRoom() {
             isHost = true;
             const myName = document.getElementById('player-name').value || "Oyuncu 1";
@@ -472,7 +468,8 @@
                 }
                 else if (data.type === 'chat_audio') {
                     let p = connections.find(c => c.id === senderId);
-                    globalChatHistory.push(`<div class="chat-message"><span style="color:var(--danger-btn);">${p ? p.name : "Oyuncu"}:</span> <audio controls src="${data.audioData}" style="height:25px; width:150px; outline:none; border-radius:15px;"></audio></div>`);
+                    // DÜZELTME: playsinline özelliği ile mobil tarayıcıların sesi engellemesi önlendi.
+                    globalChatHistory.push(`<div class="chat-message"><span style="color:var(--danger-btn);">${p ? p.name : "Oyuncu"}:</span> <audio controls playsinline preload="metadata" src="${data.audioData}" style="height:25px; width:150px; outline:none; border-radius:15px;"></audio></div>`);
                     if (globalChatHistory.length > 3) globalChatHistory.shift();
                     broadcastGameState();
                 }
@@ -615,28 +612,54 @@
             }());
         }
 
-        let mediaRecorder; let audioChunks = []; let isRecording = false;
+        // --- YENİ SES KAYIT MOTORU (Tarayıcı Uyumlu) ---
+        let mediaRecorder; 
+        let audioChunks = []; 
+        let isRecording = false;
 
         async function toggleVoiceRecording() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Ses kaydı için güvenli HTTPS bağlantısı veya mikrofon izni gerekiyor."); return; }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { 
+                alert("Tarayıcınız ses kaydını desteklemiyor veya bağlantınız güvenli (HTTPS) değil."); 
+                return; 
+            }
+            
             const micBtn = document.getElementById('mic-btn');
+            
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
+                    
+                    mediaRecorder.ondataavailable = event => { 
+                        if(event.data.size > 0) audioChunks.push(event.data); 
+                    };
+                    
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks); audioChunks = [];
-                        const reader = new FileReader(); reader.readAsDataURL(audioBlob);
-                        reader.onloadend = () => { sendGameAction('chat_audio', { audioData: reader.result }); };
+                        // DÜZELTME: Blob kimliği (MIME Type) eklendi. Böylece tarayıcılar formatı tanır.
+                        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' }); 
+                        audioChunks = [];
+                        
+                        const reader = new FileReader(); 
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => { 
+                            sendGameAction('chat_audio', { audioData: reader.result }); 
+                        };
                         stream.getTracks().forEach(track => track.stop());
                     };
-                    audioChunks = []; mediaRecorder.start(); isRecording = true;
-                    micBtn.innerHTML = '🛑'; micBtn.classList.add('recording-pulse');
-                } catch (err) { alert("Ses kaydedilemedi. Mikrofon iznini kontrol edin."); }
+                    
+                    audioChunks = []; 
+                    mediaRecorder.start(); 
+                    isRecording = true;
+                    micBtn.innerHTML = '🛑'; 
+                    micBtn.classList.add('recording-pulse');
+                } catch (err) { 
+                    alert("Ses kaydedilemedi. Mikrofon iznini kontrol edin."); 
+                }
             } else {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-                isRecording = false; micBtn.innerHTML = '🎙️'; micBtn.classList.remove('recording-pulse');
+                isRecording = false; 
+                micBtn.innerHTML = '🎙️'; 
+                micBtn.classList.remove('recording-pulse');
             }
         }
 
