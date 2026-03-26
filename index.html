@@ -9,7 +9,6 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* --- Temel ve Tema Değişkenleri --- */
         :root {
             --bg-color: #f2f2f7; --text-color: #000000; --nav-bg: rgba(255, 255, 255, 0.9);
             --card-bg: #ffffff; --primary-btn: #007aff; --danger-btn: #ff3b30;
@@ -22,54 +21,43 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; touch-action: manipulation; }
         body { background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; display: flex; flex-direction: column; height: 100vh; }
 
-        /* Üst Bar */
         .navbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); z-index: 100; overflow: hidden; width: 100%; }
         .navbar-title-container { display: flex; align-items: center; overflow: hidden; flex-grow: 1; margin-right: 10px; }
         .navbar h2 { margin: 0; font-size: 20px; font-weight: bold; flex-shrink: 0; }
         #room-id-display { margin-left: 10px; font-size: 14px; color: var(--primary-btn); cursor: pointer; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; max-width: 65vw; }
-        
         .menu-btn { background: none; border: none; font-size: 24px; color: var(--primary-btn); cursor: pointer; flex-shrink: 0; }
         
         .dropdown-menu { display: none; position: absolute; top: 50px; right: 20px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); width: 200px; z-index: 101; border: 1px solid var(--border-color); }
         .dropdown-menu.active { display: block; }
         .menu-item { padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
 
-        /* Modallar */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 200; }
         .modal { background: var(--card-bg); width: 90%; max-width: 350px; border-radius: 14px; padding: 20px; text-align: center; box-shadow: var(--shadow); }
         .modal input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border-color); font-size: 16px; background:var(--bg-color); color:var(--text-color); }
         .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; transition: opacity 0.2s; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-primary { background: var(--primary-btn); }
         .btn-secondary { background: #8e8e93; }
 
         .color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .color-btn { height: 60px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; color: white; font-size: 16px; box-shadow: var(--shadow); }
 
-        /* --- OYUN ALANI --- */
         .game-area { flex: 1; display: flex; flex-direction: column; background: radial-gradient(circle, #2b8b3b 0%, #154d1e 100%); display: none; overflow: hidden; }
         
-        /* Dinamik Bilgi Çubuğu */
         .info-bar { display: flex; gap: 10px; padding: 15px; background: rgba(0, 0, 0, 0.4); border-bottom: 2px solid rgba(255,255,255,0.1); }
         .info-box { flex: 1; background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px; color: white; font-size: 14px; line-height: 1.4; display: flex; align-items: center; justify-content: center; text-align: center; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
         .info-box.highlight { border: 1px solid rgba(255,255,255,0.3); font-weight: 500; }
         .penalty-active { border: 2px solid #ff3b30 !important; background: rgba(255, 59, 48, 0.3) !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48, 0); } }
 
-        /* MESAJ EKRANI (ÜST KISIM) */
         .chat-display { width: 100%; background: var(--card-bg); color: var(--text-color); padding: 5px 15px; font-size: 13px; font-weight: bold; min-height: 25px; display: flex; flex-direction: column; justify-content: center; gap: 3px; border-bottom: 1px solid var(--border-color); }
         .chat-message { margin: 0; line-height: 1.2; word-wrap: break-word; display: flex; align-items: center; gap: 5px; }
 
-        /* Masa Ortası */
         .table-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 30px; position: relative; }
         .deck-area, .played-area { display: flex; flex-direction: column; align-items: center; gap: 8px; color: rgba(255,255,255,0.8); font-weight: bold; font-size: 14px; }
         
-        /* --- KART TASARIMI --- */
         .uno-card { background: white; border-radius: 10px; padding: 5px; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; }
         .uno-inner { width: 100%; height: 100%; border-radius: 6px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; pointer-events: none; }
-        
         .uno-oval { position: absolute; width: 85%; height: 75%; background: white; border-radius: 50%; transform: rotate(-25deg); }
-        
         .uno-center-val { position: relative; z-index: 2; font-size: 40px; font-weight: 900; line-height: 1; text-shadow: 2px 2px 0px rgba(0,0,0,0.2); text-align: center;}
         .uno-corner { position: absolute; font-size: 16px; font-weight: bold; color: white; text-shadow: 1px 1px 1px black; z-index: 2; }
         .top-left { top: 4px; left: 6px; }
@@ -87,7 +75,6 @@
         .uno-card.disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(50%); }
         .uno-card.selected { transform: translateY(-25px) scale(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.6); z-index: 50 !important; border: 2px solid #34c759; }
 
-        /* --- Alt Kısım ve Kendi Elim --- */
         .bottom-section { margin-top: auto; display: flex; flex-direction: column; padding: 10px; background: rgba(0,0,0,0.2); }
         
         .my-hand-container { display: flex; justify-content: center; padding: 30px 10px 10px 10px; overflow-x: auto; min-height: 150px; }
@@ -97,19 +84,16 @@
 
         .uno-btn { background: var(--danger-btn); color: white; border: none; padding: 12px; border-radius: 50px; width: 100%; font-size: 18px; font-weight: 800; box-shadow: var(--shadow); cursor: pointer; margin-bottom: 10px; margin-top: 5px; }
         
-        /* Oyuncular Grid */
         .players-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .player-box { background: var(--card-bg); padding: 8px; border-radius: 8px; text-align: center; color: var(--text-color); font-size: 12px; box-shadow: var(--shadow);}
         .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
 
-        /* MESAJ GÖNDERME SATIRI (ALT KISIM) */
         .chat-input-container { display: flex; background: var(--card-bg); padding: 8px 10px; border-top: 1px solid var(--border-color); align-items: center; z-index: 100;}
         .chat-input-container input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 14px; outline: none; background: var(--bg-color); color: var(--text-color); }
         .chat-input-container button { background: none; border: none; cursor: pointer; padding: 0 0 0 10px; display: flex; align-items: center; justify-content: center; }
         .chat-input-container button svg { fill: #34c759; width: 28px; height: 28px; transform: rotate(-15deg); }
         
-        /* SES KAYDEDİCİ BUTONU */
         #mic-btn { font-size: 24px; padding: 0 5px; outline: none; transition: transform 0.2s; }
         .recording-pulse { animation: micPulse 1s infinite; }
         @keyframes micPulse { 0% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0.7); } 50% { transform: scale(1.2); text-shadow: 0 0 10px rgba(255,59,48,1); } 100% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0); } }
@@ -136,8 +120,8 @@
             <p style="font-size: 13px; color: gray; margin-top: 5px;">Aynı ağda oynamak için bir oda kurun veya katılın.</p>
             <input type="text" id="player-name" placeholder="Adınız (örn: Erkan)">
             <input type="text" id="room-code" placeholder="Oda Kodu (Katılmak için)">
-            <button id="btn-join" class="btn" style="background-color: #34c759; color: white;" onclick="joinRoom()">Odaya Katıl</button>
-            <button id="btn-create" class="btn btn-primary" onclick="createRoom()">Oda Kur</button>
+            <button class="btn" style="background-color: #34c759; color: white;" onclick="joinRoom()">Odaya Katıl</button>
+            <button class="btn btn-primary" onclick="createRoom()">Oda Kur</button>
         </div>
     </div>
 
@@ -157,8 +141,7 @@
         <div class="modal">
             <h3>Hangi Kart Üstte Kalsın?</h3>
             <p style="font-size:13px; color:gray; margin-bottom:10px;">Kombo yapıyorsunuz! Masada rengi belirleyecek olan kartı seçin.</p>
-            <div class="color-grid" id="combo-grid">
-                </div>
+            <div class="color-grid" id="combo-grid"></div>
         </div>
     </div>
 
@@ -172,7 +155,7 @@
         <div id="chat-display" class="chat-display"></div>
 
         <div class="table-center" id="table-center" ondragover="event.preventDefault()" ondrop="handleTableDrop(event)">
-            </div>
+        </div>
 
         <div class="bottom-section">
             <div class="my-hand-container" id="my-hand"></div>
@@ -228,11 +211,9 @@
                 this.turnIndex = 0; this.direction = 1; 
                 this.currentColor = ''; 
                 this.turnCount = 1;
-                
                 this.pendingDraws = 0; 
                 this.pendingDrawType = null; 
                 this.drawsThisTurn = 0; 
-
                 this.lastActionText = "Oyun başladı! Sıra " + this.players[0].name + " kişisinde.";
                 this.initDeck(); this.shuffleDeck();
             }
@@ -283,7 +264,6 @@
             }
 
             nextTurn(skipCount = 1) {
-                // Matematiksel çökme koruması eklendi (Negatif indeks hatasını önler)
                 this.turnIndex = (((this.turnIndex + (this.direction * skipCount)) % this.players.length) + this.players.length) % this.players.length;
                 this.turnCount++;
                 this.drawsThisTurn = 0; 
@@ -411,15 +391,10 @@
 
         peer.on('open', (id) => { myId = id; });
 
-        // GÜNCELLEME: Oda Kurarken PeerJS bağlantısının hazır olmasını bekleme kalkanı
+        // ESKİ, SAĞLAM ODA KURMA FONKSİYONU
         function createRoom() {
-            if (!myId) {
-                alert("Ağ bağlantısı henüz kurulamadı. Lütfen 1-2 saniye bekleyip tekrar tıklayın.");
-                return;
-            }
             isHost = true;
-            // GÜNCELLEME: İsmin başında veya sonundaki gereksiz boşlukları sil
-            const myName = document.getElementById('player-name').value.trim() || "Oyuncu 1";
+            const myName = document.getElementById('player-name').value || "Oyuncu 1";
             currentRoomCode = myId;
             document.getElementById('room-id-display').innerText = `Oda: ${myId}`;
             connections.push({ id: myId, name: myName, conn: 'host' });
@@ -435,51 +410,19 @@
             });
         }
 
-        // GÜNCELLEME: Odaya Katılma işlemi sırasındaki görünmez boşluk (space) ve bağlantı çökmelerini önleme sistemi
+        // ESKİ, SAĞLAM ODAYA KATILMA FONKSİYONU (Hiçbir gecikme veya kontrol kilitlenmesi yok)
         function joinRoom() {
-            const codeInput = document.getElementById('room-code').value;
-            // HAYATİ DÜZELTME: Kopyalanan kodun sonundaki gereksiz boşlukları .trim() ile tıraşlar!
-            const code = codeInput.trim(); 
-            
-            if (!code) {
-                alert("Lütfen geçerli bir oda kodu girin!");
-                return;
-            }
-
-            const myName = document.getElementById('player-name').value.trim() || "Oyuncu Katıldı";
+            const code = document.getElementById('room-code').value;
+            const myName = document.getElementById('player-name').value || "Oyuncu Katıldı";
             currentRoomCode = code;
             
-            // Kullanıcıya Tıklama Geri Bildirimi Ver
-            const btnJoin = document.getElementById('btn-join');
-            const origText = btnJoin.innerText;
-            btnJoin.innerText = "Bağlanıyor...";
-            btnJoin.disabled = true;
-
             hostConnection = peer.connect(code);
-            
             hostConnection.on('open', () => {
                 hostConnection.send({ type: 'join', name: myName });
                 document.getElementById('login-modal').style.display = 'none';
                 document.getElementById('game-board').style.display = 'flex';
                 document.getElementById('room-id-display').innerText = `Oda: ${code}`;
             });
-
-            // GÜNCELLEME: Eğer kod yanlışsa veya bağlantı başarısız olursa donup kalmasını engeller
-            hostConnection.on('error', (err) => {
-                alert("Bağlantı başarısız: " + err);
-                btnJoin.innerText = origText;
-                btnJoin.disabled = false;
-            });
-
-            // 5 Saniye içinde bağlanmazsa kullanıcıyı bilgilendir
-            setTimeout(() => {
-                if (!hostConnection.open) {
-                    alert("Odaya bağlanılamadı. Kodu yanlış kopyalamış olabilirsiniz veya Oda kurucusu çıkmış olabilir.");
-                    btnJoin.innerText = origText;
-                    btnJoin.disabled = false;
-                }
-            }, 5000);
-
             hostConnection.on('data', (data) => { handleIncomingData(data, 'host'); });
         }
 
@@ -489,7 +432,6 @@
             else if(hostConnection) hostConnection.send(payload);
         }
 
-        // --- MESAJ & SES GÖNDERME ---
         function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
@@ -816,18 +758,15 @@
             }());
         }
 
-        // --- YENİ: SES KAYIT MOTORU (GÜVENLİK KALKANLI) ---
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
 
         async function toggleVoiceRecording() {
-            // Eğer tarayıcıda mikrofon özelliği yoksa (HTTPS değilse) patlamayı önle
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 alert("Tarayıcınız veya bağlantınız ses kaydını desteklemiyor! (Bu özellik sadece güvenli HTTPS bağlantılarında çalışır.)");
                 return;
             }
-
             const micBtn = document.getElementById('mic-btn');
             
             if (!isRecording) {
@@ -874,12 +813,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then((registration) => {
-                        console.log('ServiceWorker başarıyla kaydedildi.');
-                    }, (err) => {
-                        console.log('ServiceWorker kaydı başarısız oldu: ', err);
-                    });
+                navigator.serviceWorker.register('./sw.js').catch((err) => {});
             });
         }
     </script>
