@@ -38,7 +38,8 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 200; }
         .modal { background: var(--card-bg); width: 90%; max-width: 350px; border-radius: 14px; padding: 20px; text-align: center; box-shadow: var(--shadow); }
         .modal input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border-color); font-size: 16px; background:var(--bg-color); color:var(--text-color); }
-        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; }
+        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; transition: opacity 0.2s; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-primary { background: var(--primary-btn); }
         .btn-secondary { background: #8e8e93; }
 
@@ -135,8 +136,8 @@
             <p style="font-size: 13px; color: gray; margin-top: 5px;">Aynı ağda oynamak için bir oda kurun veya katılın.</p>
             <input type="text" id="player-name" placeholder="Adınız (örn: Erkan)">
             <input type="text" id="room-code" placeholder="Oda Kodu (Katılmak için)">
-            <button class="btn" style="background-color: #34c759; color: white;" onclick="joinRoom()">Odaya Katıl</button>
-            <button class="btn btn-primary" onclick="createRoom()">Oda Kur</button>
+            <button id="btn-join" class="btn" style="background-color: #34c759; color: white;" onclick="joinRoom()">Odaya Katıl</button>
+            <button id="btn-create" class="btn btn-primary" onclick="createRoom()">Oda Kur</button>
         </div>
     </div>
 
@@ -282,7 +283,8 @@
             }
 
             nextTurn(skipCount = 1) {
-                this.turnIndex = (this.turnIndex + (this.direction * skipCount) + this.players.length) % this.players.length;
+                // Matematiksel çökme koruması eklendi (Negatif indeks hatasını önler)
+                this.turnIndex = (((this.turnIndex + (this.direction * skipCount)) % this.players.length) + this.players.length) % this.players.length;
                 this.turnCount++;
                 this.drawsThisTurn = 0; 
 
@@ -312,7 +314,7 @@
                 this.drawsThisTurn++;
 
                 if (this.drawsThisTurn >= 2) {
-                    let nextP = this.players[(this.turnIndex + this.direction + this.players.length) % this.players.length].name;
+                    let nextP = this.players[(((this.turnIndex + this.direction) % this.players.length) + this.players.length) % this.players.length].name;
                     this.lastActionText = `${p.name} pas geçmek için 2 kart çekti. Sıra ${nextP}'da.`;
                     this.nextTurn();
                 } else {
@@ -378,7 +380,7 @@
 
                 if (player.hand.length === 0) return { success: true, gameOver: true, winner: player };
 
-                let nextPlayerIndex = (this.turnIndex + (this.direction * skipTurns) + this.players.length) % this.players.length;
+                let nextPlayerIndex = (((this.turnIndex + (this.direction * skipTurns)) % this.players.length) + this.players.length) % this.players.length;
                 let nextPlayerName = this.players[nextPlayerIndex].name;
                 
                 let cName = topCard.color === 'Siyah' ? `Joker (${this.currentColor})` : `${topCard.color} ${topCard.value}`;
@@ -409,9 +411,15 @@
 
         peer.on('open', (id) => { myId = id; });
 
+        // GÜNCELLEME: Oda Kurarken PeerJS bağlantısının hazır olmasını bekleme kalkanı
         function createRoom() {
+            if (!myId) {
+                alert("Ağ bağlantısı henüz kurulamadı. Lütfen 1-2 saniye bekleyip tekrar tıklayın.");
+                return;
+            }
             isHost = true;
-            const myName = document.getElementById('player-name').value || "Oyuncu 1";
+            // GÜNCELLEME: İsmin başında veya sonundaki gereksiz boşlukları sil
+            const myName = document.getElementById('player-name').value.trim() || "Oyuncu 1";
             currentRoomCode = myId;
             document.getElementById('room-id-display').innerText = `Oda: ${myId}`;
             connections.push({ id: myId, name: myName, conn: 'host' });
@@ -427,18 +435,51 @@
             });
         }
 
+        // GÜNCELLEME: Odaya Katılma işlemi sırasındaki görünmez boşluk (space) ve bağlantı çökmelerini önleme sistemi
         function joinRoom() {
-            const code = document.getElementById('room-code').value;
-            const myName = document.getElementById('player-name').value || "Oyuncu Katıldı";
+            const codeInput = document.getElementById('room-code').value;
+            // HAYATİ DÜZELTME: Kopyalanan kodun sonundaki gereksiz boşlukları .trim() ile tıraşlar!
+            const code = codeInput.trim(); 
+            
+            if (!code) {
+                alert("Lütfen geçerli bir oda kodu girin!");
+                return;
+            }
+
+            const myName = document.getElementById('player-name').value.trim() || "Oyuncu Katıldı";
             currentRoomCode = code;
             
+            // Kullanıcıya Tıklama Geri Bildirimi Ver
+            const btnJoin = document.getElementById('btn-join');
+            const origText = btnJoin.innerText;
+            btnJoin.innerText = "Bağlanıyor...";
+            btnJoin.disabled = true;
+
             hostConnection = peer.connect(code);
+            
             hostConnection.on('open', () => {
                 hostConnection.send({ type: 'join', name: myName });
                 document.getElementById('login-modal').style.display = 'none';
                 document.getElementById('game-board').style.display = 'flex';
                 document.getElementById('room-id-display').innerText = `Oda: ${code}`;
             });
+
+            // GÜNCELLEME: Eğer kod yanlışsa veya bağlantı başarısız olursa donup kalmasını engeller
+            hostConnection.on('error', (err) => {
+                alert("Bağlantı başarısız: " + err);
+                btnJoin.innerText = origText;
+                btnJoin.disabled = false;
+            });
+
+            // 5 Saniye içinde bağlanmazsa kullanıcıyı bilgilendir
+            setTimeout(() => {
+                if (!hostConnection.open) {
+                    alert("Odaya bağlanılamadı. Kodu yanlış kopyalamış olabilirsiniz veya Oda kurucusu çıkmış olabilir.");
+                    btnJoin.innerText = origText;
+                    btnJoin.disabled = false;
+                }
+            }, 5000);
+
             hostConnection.on('data', (data) => { handleIncomingData(data, 'host'); });
         }
 
@@ -544,7 +585,6 @@
                     if (globalChatHistory.length > 3) globalChatHistory.shift();
                     broadcastGameState();
                 }
-                // YENİ: Sesli Mesajı Al ve Geçmişe Ekle
                 else if (data.type === 'chat_audio') {
                     let p = connections.find(c => c.id === senderId);
                     let senderName = p ? p.name : "Oyuncu";
@@ -584,7 +624,7 @@
             if(winScr) winScr.remove();
 
             const isMyTurn = gameState.activeTurnId === myId;
-            currentMyHand = gameState.myHand;
+            currentMyHand = gameState.myHand || [];
             const me = gameState.playersStatus.find(p => p.id === myId);
 
             document.getElementById('my-info').innerHTML = `Oyuncu ${gameState.myIndex}<br><small>(${me ? me.name : ''}) - Tur: ${gameState.turnCount}</small>`;
@@ -776,12 +816,18 @@
             }());
         }
 
-        // --- YENİ: SES KAYIT MOTORU ---
+        // --- YENİ: SES KAYIT MOTORU (GÜVENLİK KALKANLI) ---
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
 
         async function toggleVoiceRecording() {
+            // Eğer tarayıcıda mikrofon özelliği yoksa (HTTPS değilse) patlamayı önle
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("Tarayıcınız veya bağlantınız ses kaydını desteklemiyor! (Bu özellik sadece güvenli HTTPS bağlantılarında çalışır.)");
+                return;
+            }
+
             const micBtn = document.getElementById('mic-btn');
             
             if (!isRecording) {
@@ -814,7 +860,7 @@
                     micBtn.classList.add('recording-pulse');
                     
                 } catch (err) {
-                    alert("Ses kaydedilemedi. Mikrofon iznini kontrol edin veya sayfanın güvenli (HTTPS) olduğundan emin olun.");
+                    alert("Ses kaydedilemedi. Cihazınızın mikrofon iznini kontrol edin.");
                 }
             } else {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
