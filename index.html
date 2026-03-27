@@ -247,12 +247,7 @@
                 this.turnIndex = (((this.turnIndex + (this.direction * skipCount)) % this.players.length) + this.players.length) % this.players.length;
                 this.turnCount++;
                 this.drawsThisTurn = 0; 
-
-                let currentPlayer = this.players[this.turnIndex];
-                if (currentPlayer && currentPlayer.hand.length === 1 && !currentPlayer.saidUno) {
-                    for(let i=0; i<4; i++) currentPlayer.hand.push(this.drawFromDeck());
-                    this.lastActionText += `<br><span style="color:#ff3b30; font-weight:bold;">🚨 CEZA! ${currentPlayer.name} UNO demeyi unuttuğu için 4 kart yedi!</span>`;
-                }
+                // BURADAKİ HATALI VE KÖRLÜ CEZA MANTIĞI SİLİNDİ! Ceza artık 'playCard' içinde mantıklı bir şekilde veriliyor.
             }
 
             playerDrawCard(playerId) {
@@ -333,10 +328,20 @@
                 let cName = topCard.color === 'Siyah' ? `Joker (${this.currentColor})` : `${topCard.color} ${topCard.value}`;
                 let actionMsg = `${player.name} ${comboCount > 1 ? comboCount + ' adet ' : ''}${cName} attı.`;
                 
-                if (this.pendingDraws > 0) this.lastActionText = `DİKKAT! ${actionMsg} ${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
+                // YENİ VE MANTIKLI CEZA SİSTEMİ:
+                // Eğer kartı 1 kaldıysa, "UNO" demediyse VE sıra BAŞKASINA geçiyorsa ceza yer.
+                // İki kişilik oyunda Yön/Pas atarsa sıra hala ondadır (nextPlayerIndex === this.turnIndex), bu yüzden ceza YEMEZ.
+                if (player.hand.length === 1 && !player.saidUno && nextPlayerIndex !== this.turnIndex) {
+                    for(let i=0; i<4; i++) player.hand.push(this.drawFromDeck());
+                    actionMsg += `<br><span style="color:#ff3b30; font-weight:bold;">🚨 UNO demeyi unuttuğu için 4 KART CEZA yedi!</span>`;
+                }
+
+                if (this.pendingDraws > 0) this.lastActionText = `DİKKAT! ${actionMsg} <br>${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
                 else this.lastActionText = `${actionMsg} Sıra ${nextPlayerName}'da.`;
 
+                // Eli 1'den fazlaysa bir sonraki tur için UNO demesini sıfırla
                 if (player.hand.length > 1) player.saidUno = false;
+                
                 this.nextTurn(skipTurns);
                 return { success: true, gameOver: false };
             }
@@ -402,7 +407,6 @@
             else if(hostConnection) hostConnection.send(payload);
         }
 
-        // YENİ: KİCK GÖNDERME FONKSİYONU
         function kickPlayer(targetId) {
             if (!isHost) return;
             if (confirm("Bu oyuncuyu odadan atmak istediğinize emin misiniz?")) {
@@ -446,7 +450,6 @@
         function handleIncomingData(data, senderId) {
             if (data.type === 'state_update') updateUI(data); 
             else if (data.type === 'game_over') triggerWinAnimation(data.winnerName);
-            // YENİ: ATILMA SİNYALİ ALINIRSA
             else if (data.type === 'kicked') {
                 alert("Oda kurucusu tarafından oyundan atıldınız.");
                 window.location.reload();
@@ -466,7 +469,6 @@
                         broadcastGameState(); 
                     } else if (connections.length >= 2) startGameAsHost();
                 }
-                // YENİ: ODA KURUCUSUNUN ATMA (KİCK) İŞLEMİNİ YÖNETMESİ
                 else if (data.type === 'kick_player') {
                     let targetId = data.targetId;
                     let targetConn = connections.find(c => c.id === targetId);
@@ -479,7 +481,6 @@
                     if (pIndex !== -1) {
                         let pName = gameInstance.players[pIndex].name;
                         
-                        // Kilitlenmeyi önleyen sihirli sıra atlatma hesabı
                         if (gameInstance.turnIndex > pIndex) {
                             gameInstance.turnIndex--;
                         } else if (gameInstance.turnIndex === pIndex) {
@@ -584,9 +585,7 @@
             const pContainer = document.getElementById('players-container');
             pContainer.innerHTML = '';
             gameState.playersStatus.forEach(p => {
-                // YENİ: SADECE HOST GÖREBİLSİN VE KENDİNİ ATAMASIN
                 let kickBtnHTML = (isHost && p.id !== myId) ? `<button onclick="kickPlayer('${p.id}')" style="background:var(--danger-btn); color:white; border:none; border-radius:4px; padding:3px 8px; margin-top:5px; font-size:11px; font-weight:bold; cursor:pointer;">At ❌</button>` : '';
-                
                 pContainer.innerHTML += `<div class="player-box ${p.id === gameState.activeTurnId ? 'active-player' : ''}"><div class="name">${p.name}</div>Kalan: ${p.cardCount}${kickBtnHTML}</div>`;
             });
 
