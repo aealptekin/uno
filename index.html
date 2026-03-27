@@ -247,7 +247,7 @@
                 this.turnIndex = (((this.turnIndex + (this.direction * skipCount)) % this.players.length) + this.players.length) % this.players.length;
                 this.turnCount++;
                 this.drawsThisTurn = 0; 
-                // BURADAKİ HATALI VE KÖRLÜ CEZA MANTIĞI SİLİNDİ! Ceza artık 'playCard' içinde mantıklı bir şekilde veriliyor.
+                // Hatalı kör ceza tamamen silinmiştir. Sadece playCard içinde mantıklı kontrol var.
             }
 
             playerDrawCard(playerId) {
@@ -328,10 +328,11 @@
                 let cName = topCard.color === 'Siyah' ? `Joker (${this.currentColor})` : `${topCard.color} ${topCard.value}`;
                 let actionMsg = `${player.name} ${comboCount > 1 ? comboCount + ' adet ' : ''}${cName} attı.`;
                 
-                // YENİ VE MANTIKLI CEZA SİSTEMİ:
-                // Eğer kartı 1 kaldıysa, "UNO" demediyse VE sıra BAŞKASINA geçiyorsa ceza yer.
-                // İki kişilik oyunda Yön/Pas atarsa sıra hala ondadır (nextPlayerIndex === this.turnIndex), bu yüzden ceza YEMEZ.
-                if (player.hand.length === 1 && !player.saidUno && nextPlayerIndex !== this.turnIndex) {
+                // --- KESİN VE KUSURSUZ CEZA MANTIĞI ---
+                // Eğer tur yine aynı oyuncuda kalıyorsa (isTurnKept = true), KESİNLİKLE ceza yazmaz!
+                let isTurnKept = (nextPlayerIndex === this.turnIndex);
+
+                if (player.hand.length === 1 && !player.saidUno && !isTurnKept) {
                     for(let i=0; i<4; i++) player.hand.push(this.drawFromDeck());
                     actionMsg += `<br><span style="color:#ff3b30; font-weight:bold;">🚨 UNO demeyi unuttuğu için 4 KART CEZA yedi!</span>`;
                 }
@@ -339,7 +340,6 @@
                 if (this.pendingDraws > 0) this.lastActionText = `DİKKAT! ${actionMsg} <br>${nextPlayerName} ya ${this.pendingDrawType} ile katlayacak ya da cezayı çekecek!`;
                 else this.lastActionText = `${actionMsg} Sıra ${nextPlayerName}'da.`;
 
-                // Eli 1'den fazlaysa bir sonraki tur için UNO demesini sıfırla
                 if (player.hand.length > 1) player.saidUno = false;
                 
                 this.nextTurn(skipTurns);
@@ -456,18 +456,31 @@
             }
             else if (isHost) {
                 if (data.type === 'join') {
-                    let p = connections.find(c => c.id === senderId); 
-                    if(p) p.name = data.name;
-                    if(gameInstance) {
-                        let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
-                        if(gamePlayer) gamePlayer.name = data.name;
-                        else {
-                            let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
-                            for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
-                            gameInstance.players.push(newP);
-                        }
+                    // KOPAN OYUNCUYU TANI (RECONNECT) MANTIĞI EKLENDİ
+                    let existingPlayer = gameInstance ? gameInstance.players.find(gp => gp.name === data.name && gp.id !== senderId) : null;
+                    
+                    if(existingPlayer && gameInstance) {
+                        connections = connections.filter(c => c.id !== existingPlayer.id);
+                        existingPlayer.id = senderId;
+                        let p = connections.find(c => c.id === senderId); 
+                        if(p) p.name = data.name;
+
+                        gameInstance.lastActionText = `🔌 <b>${data.name}</b> geri geldi! Kaldığı yerden devam ediyor.`;
                         broadcastGameState(); 
-                    } else if (connections.length >= 2) startGameAsHost();
+                    } else {
+                        let p = connections.find(c => c.id === senderId); 
+                        if(p) p.name = data.name;
+                        if(gameInstance) {
+                            let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
+                            if(gamePlayer) gamePlayer.name = data.name;
+                            else {
+                                let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
+                                for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
+                                gameInstance.players.push(newP);
+                            }
+                            broadcastGameState(); 
+                        } else if (connections.length >= 2) startGameAsHost();
+                    }
                 }
                 else if (data.type === 'kick_player') {
                     let targetId = data.targetId;
