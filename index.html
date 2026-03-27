@@ -41,7 +41,6 @@
         .penalty-active { border: 2px solid #ff3b30 !important; background: rgba(255, 59, 48, 0.3) !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48, 0); } }
 
-        /* MESAJ EKRANI (ÜST KISIM) */
         .chat-display { width: 100%; background: var(--card-bg); color: var(--text-color); padding: 5px 15px; font-size: 13px; font-weight: bold; min-height: 25px; display: flex; flex-direction: column; justify-content: center; gap: 3px; border-bottom: 1px solid var(--border-color); }
         .chat-message { margin: 0; line-height: 1.2; word-wrap: break-word; display: flex; align-items: center; gap: 5px; }
 
@@ -76,17 +75,15 @@
         .uno-btn { background: var(--danger-btn); color: white; border: none; padding: 12px; border-radius: 50px; width: 100%; font-size: 18px; font-weight: 800; box-shadow: var(--shadow); cursor: pointer; margin-bottom: 10px; margin-top: 5px; }
         
         .players-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .player-box { background: var(--card-bg); padding: 8px; border-radius: 8px; text-align: center; color: var(--text-color); font-size: 12px; box-shadow: var(--shadow);}
-        .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .player-box { background: var(--card-bg); padding: 8px; border-radius: 8px; text-align: center; color: var(--text-color); font-size: 12px; box-shadow: var(--shadow); display:flex; flex-direction:column; justify-content:center; align-items:center;}
+        .player-box .name { font-weight: bold; margin-bottom: 3px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;}
         .active-player { border: 2px solid #34c759; background: rgba(52, 199, 89, 0.1); }
 
-        /* MESAJ GÖNDERME SATIRI (ALT KISIM) */
         .chat-input-container { display: flex; background: var(--card-bg); padding: 8px 10px; border-top: 1px solid var(--border-color); align-items: center; z-index: 100;}
         .chat-input-container input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 14px; outline: none; background: var(--bg-color); color: var(--text-color); }
         .chat-input-container button { background: none; border: none; cursor: pointer; padding: 0 0 0 10px; display: flex; align-items: center; justify-content: center; }
         .chat-input-container button svg { fill: #34c759; width: 28px; height: 28px; transform: rotate(-15deg); }
         
-        /* SES KAYDEDİCİ BUTONU */
         #mic-btn { font-size: 24px; padding: 0 5px; outline: none; transition: transform 0.2s; }
         .recording-pulse { animation: micPulse 1s infinite; }
         @keyframes micPulse { 0% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0.7); } 50% { transform: scale(1.2); text-shadow: 0 0 10px rgba(255,59,48,1); } 100% { transform: scale(1); text-shadow: 0 0 0 rgba(255,59,48,0); } }
@@ -246,12 +243,13 @@
             }
 
             nextTurn(skipCount = 1) {
+                if (this.players.length === 0) return;
                 this.turnIndex = (((this.turnIndex + (this.direction * skipCount)) % this.players.length) + this.players.length) % this.players.length;
                 this.turnCount++;
                 this.drawsThisTurn = 0; 
 
                 let currentPlayer = this.players[this.turnIndex];
-                if (currentPlayer.hand.length === 1 && !currentPlayer.saidUno) {
+                if (currentPlayer && currentPlayer.hand.length === 1 && !currentPlayer.saidUno) {
                     for(let i=0; i<4; i++) currentPlayer.hand.push(this.drawFromDeck());
                     this.lastActionText += `<br><span style="color:#ff3b30; font-weight:bold;">🚨 CEZA! ${currentPlayer.name} UNO demeyi unuttuğu için 4 kart yedi!</span>`;
                 }
@@ -344,8 +342,6 @@
             }
         }
 
-        // --- AĞ (PEERJS) --- 
-        // HATA BURADAYDI: Bağlantı mimarisini sapa sağlam hale getirdim.
         let peer = new Peer(); 
         let connections = []; let isHost = false; let gameInstance = null; let myId = null; let hostConnection = null;
         let pendingWildCard = null; let currentMyHand = []; let myPlayerIndex = 0;
@@ -367,7 +363,6 @@
                 document.getElementById('action-log').innerText = "Diğer oyuncular bekleniyor...";
 
                 peer.on('connection', (conn) => {
-                    // DÜZELTME 1: Gelen verileri dinlemeden önce bağlantının tam açıldığından %100 emin ol
                     conn.on('open', () => {
                         conn.on('data', (data) => handleIncomingData(data, conn.peer));
                         connections.push({ id: conn.peer, name: "Bağlanıyor...", conn: conn });
@@ -388,14 +383,12 @@
             
             const startJoinSetup = () => {
                 hostConnection = peer.connect(code);
-                
                 hostConnection.on('open', () => {
                     hostConnection.send({ type: 'join', name: myName });
                     document.getElementById('login-modal').style.display = 'none';
                     document.getElementById('game-board').style.display = 'flex';
                     document.getElementById('room-id-display').innerText = `Oda: ${code}`;
                 });
-                
                 hostConnection.on('data', (data) => { handleIncomingData(data, 'host'); });
             };
 
@@ -409,13 +402,18 @@
             else if(hostConnection) hostConnection.send(payload);
         }
 
+        // YENİ: KİCK GÖNDERME FONKSİYONU
+        function kickPlayer(targetId) {
+            if (!isHost) return;
+            if (confirm("Bu oyuncuyu odadan atmak istediğinize emin misiniz?")) {
+                sendGameAction('kick_player', { targetId: targetId });
+            }
+        }
+
         function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value;
-            if(text) {
-                sendGameAction('chat_message', { text: text });
-                input.value = '';
-            }
+            if(text) { sendGameAction('chat_message', { text: text }); input.value = ''; }
         }
 
         function startGameAsHost() {
@@ -435,7 +433,7 @@
                 if(!pData) return; 
                 const payload = {
                     type: 'state_update', topCard: topCard, currentColor: gameInstance.currentColor,
-                    myHand: pData.hand, activeTurnId: gameInstance.players[gameInstance.turnIndex].id,
+                    myHand: pData.hand, activeTurnId: gameInstance.players[gameInstance.turnIndex]?.id,
                     playersStatus: gameInstance.players.map(p => ({ id: p.id, name: p.name, cardCount: p.hand.length })),
                     lastActionText: gameInstance.lastActionText, turnCount: gameInstance.turnCount, myIndex: index + 1,
                     pendingDraws: gameInstance.pendingDraws, pendingDrawType: gameInstance.pendingDrawType,
@@ -448,36 +446,55 @@
         function handleIncomingData(data, senderId) {
             if (data.type === 'state_update') updateUI(data); 
             else if (data.type === 'game_over') triggerWinAnimation(data.winnerName);
+            // YENİ: ATILMA SİNYALİ ALINIRSA
+            else if (data.type === 'kicked') {
+                alert("Oda kurucusu tarafından oyundan atıldınız.");
+                window.location.reload();
+            }
             else if (isHost) {
                 if (data.type === 'join') {
-                    let currentConn = connections.find(c => c.id === senderId); 
-                    if(currentConn) currentConn.name = data.name;
-                    
+                    let p = connections.find(c => c.id === senderId); 
+                    if(p) p.name = data.name;
                     if(gameInstance) {
-                        // KOPAN OYUNCUYU İSMİNDEN BUL (Yeniden bağlanma kontrolü)
-                        let existingPlayer = gameInstance.players.find(gp => gp.name === data.name && gp.id !== senderId);
-                        
-                        if(existingPlayer) {
-                            // 1. Kopan eski bağlantıyı (hayaleti) sistemden temizle
-                            connections = connections.filter(c => c.id !== existingPlayer.id);
-                            
-                            // 2. Oyuncunun oyun içindeki kimliğini yeni ID ile değiştir (Kartları ve sırası korunur)
-                            existingPlayer.id = senderId;
-                            
-                            // 3. Herkese bilgi ver
-                            gameInstance.lastActionText = `🔌 <b>${data.name}</b> bağlantısı koptu ve geri geldi!`;
-                        } else {
-                            // Daha önce oyunda olmayan tamamen yeni biri geliyorsa normal ekle
-                            let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
-                            if(!gamePlayer) {
-                                let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
-                                for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
-                                gameInstance.players.push(newP);
-                            }
+                        let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
+                        if(gamePlayer) gamePlayer.name = data.name;
+                        else {
+                            let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
+                            for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
+                            gameInstance.players.push(newP);
                         }
                         broadcastGameState(); 
-                    } else if (connections.length >= 2) {
-                        startGameAsHost();
+                    } else if (connections.length >= 2) startGameAsHost();
+                }
+                // YENİ: ODA KURUCUSUNUN ATMA (KİCK) İŞLEMİNİ YÖNETMESİ
+                else if (data.type === 'kick_player') {
+                    let targetId = data.targetId;
+                    let targetConn = connections.find(c => c.id === targetId);
+                    
+                    if(targetConn && targetConn.conn !== 'host') {
+                        targetConn.conn.send({type: 'kicked'});
+                    }
+
+                    let pIndex = gameInstance.players.findIndex(p => p.id === targetId);
+                    if (pIndex !== -1) {
+                        let pName = gameInstance.players[pIndex].name;
+                        
+                        // Kilitlenmeyi önleyen sihirli sıra atlatma hesabı
+                        if (gameInstance.turnIndex > pIndex) {
+                            gameInstance.turnIndex--;
+                        } else if (gameInstance.turnIndex === pIndex) {
+                            if (gameInstance.turnIndex >= gameInstance.players.length - 1) {
+                                gameInstance.turnIndex = 0;
+                            }
+                            gameInstance.pendingDraws = 0; 
+                            gameInstance.drawsThisTurn = 0;
+                        }
+                        
+                        gameInstance.players.splice(pIndex, 1);
+                        connections = connections.filter(c => c.id !== targetId);
+                        
+                        gameInstance.lastActionText = `🚫 <b>${pName}</b> odadan atıldı. Sıra sonraki oyuncuda.`;
+                        broadcastGameState();
                     }
                 }
                 else if (data.type === 'play_card') {
@@ -505,7 +522,6 @@
                 }
                 else if (data.type === 'chat_audio') {
                     let p = connections.find(c => c.id === senderId);
-                    // DÜZELTME 2: playsinline etiketi Android/iOS uyuşmazlığını çözer
                     globalChatHistory.push(`<div class="chat-message"><span style="color:var(--danger-btn);">${p ? p.name : "Oyuncu"}:</span> <audio controls playsinline src="${data.audioData}" style="height:25px; width:150px; outline:none; border-radius:15px;"></audio></div>`);
                     if (globalChatHistory.length > 3) globalChatHistory.shift();
                     broadcastGameState();
@@ -568,7 +584,10 @@
             const pContainer = document.getElementById('players-container');
             pContainer.innerHTML = '';
             gameState.playersStatus.forEach(p => {
-                pContainer.innerHTML += `<div class="player-box ${p.id === gameState.activeTurnId ? 'active-player' : ''}"><div class="name">${p.name}</div>Kalan: ${p.cardCount}</div>`;
+                // YENİ: SADECE HOST GÖREBİLSİN VE KENDİNİ ATAMASIN
+                let kickBtnHTML = (isHost && p.id !== myId) ? `<button onclick="kickPlayer('${p.id}')" style="background:var(--danger-btn); color:white; border:none; border-radius:4px; padding:3px 8px; margin-top:5px; font-size:11px; font-weight:bold; cursor:pointer;">At ❌</button>` : '';
+                
+                pContainer.innerHTML += `<div class="player-box ${p.id === gameState.activeTurnId ? 'active-player' : ''}"><div class="name">${p.name}</div>Kalan: ${p.cardCount}${kickBtnHTML}</div>`;
             });
 
             const handContainer = document.getElementById('my-hand');
@@ -649,7 +668,6 @@
             }());
         }
 
-        // --- YENİ SES KAYIT MOTORU ---
         let mediaRecorder; 
         let audioChunks = []; 
         let isRecording = false;
@@ -672,7 +690,6 @@
                     };
                     
                     mediaRecorder.onstop = () => {
-                        // DÜZELTME 3: MIME Type (Kimlik) dinamiği eklendi. Android ve iPhone artık birbirini anlıyor.
                         let type = 'audio/webm';
                         if (MediaRecorder.isTypeSupported('audio/mp4')) { type = 'audio/mp4'; }
                         const audioBlob = new Blob(audioChunks, { type: type }); 
