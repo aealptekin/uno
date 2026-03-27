@@ -450,18 +450,35 @@
             else if (data.type === 'game_over') triggerWinAnimation(data.winnerName);
             else if (isHost) {
                 if (data.type === 'join') {
-                    let p = connections.find(c => c.id === senderId); 
-                    if(p) p.name = data.name;
+                    let currentConn = connections.find(c => c.id === senderId); 
+                    if(currentConn) currentConn.name = data.name;
+                    
                     if(gameInstance) {
-                        let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
-                        if(gamePlayer) gamePlayer.name = data.name;
-                        else {
-                            let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
-                            for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
-                            gameInstance.players.push(newP);
+                        // KOPAN OYUNCUYU İSMİNDEN BUL (Yeniden bağlanma kontrolü)
+                        let existingPlayer = gameInstance.players.find(gp => gp.name === data.name && gp.id !== senderId);
+                        
+                        if(existingPlayer) {
+                            // 1. Kopan eski bağlantıyı (hayaleti) sistemden temizle
+                            connections = connections.filter(c => c.id !== existingPlayer.id);
+                            
+                            // 2. Oyuncunun oyun içindeki kimliğini yeni ID ile değiştir (Kartları ve sırası korunur)
+                            existingPlayer.id = senderId;
+                            
+                            // 3. Herkese bilgi ver
+                            gameInstance.lastActionText = `🔌 <b>${data.name}</b> bağlantısı koptu ve geri geldi!`;
+                        } else {
+                            // Daha önce oyunda olmayan tamamen yeni biri geliyorsa normal ekle
+                            let gamePlayer = gameInstance.players.find(gp => gp.id === senderId);
+                            if(!gamePlayer) {
+                                let newP = { id: senderId, name: data.name, hand: [], score: 0, saidUno: false };
+                                for(let i=0; i<7; i++) newP.hand.push(gameInstance.drawFromDeck());
+                                gameInstance.players.push(newP);
+                            }
                         }
                         broadcastGameState(); 
-                    } else if (connections.length >= 2) startGameAsHost();
+                    } else if (connections.length >= 2) {
+                        startGameAsHost();
+                    }
                 }
                 else if (data.type === 'play_card') {
                     let result = gameInstance.playCard(senderId, data);
